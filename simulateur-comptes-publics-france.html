@@ -1,0 +1,759 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Simulateur des comptes publics de la France</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+  :root{
+    --ink:#0d1b2a;
+    --panel:#132a3e;
+    --panel-2:#183350;
+    --line: rgba(184,150,62,0.25);
+    --gold:#c9a24a;
+    --gold-soft:#8a7238;
+    --paper:#eee7d8;
+    --muted:#93a8bd;
+    --red:#c1443c;
+    --green:#3c9c73;
+    --text:#e9edf2;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;padding:0;background:var(--ink);color:var(--text);font-family:'IBM Plex Sans',sans-serif;-webkit-font-smoothing:antialiased;}
+  body{background:
+    radial-gradient(1200px 600px at 15% -10%, rgba(201,162,74,0.09), transparent 60%),
+    radial-gradient(900px 500px at 100% 0%, rgba(60,156,115,0.06), transparent 60%),
+    var(--ink);
+  }
+  .wrap{max-width:1180px;margin:0 auto;padding:36px 24px 90px;}
+
+  /* Header */
+  header{border-bottom:1px solid var(--line);padding-bottom:26px;margin-bottom:28px;}
+  .eyebrow{font-family:'IBM Plex Mono',monospace;letter-spacing:.14em;text-transform:uppercase;font-size:11.5px;color:var(--gold);margin-bottom:10px;}
+  h1{font-family:'Fraunces',serif;font-weight:600;font-size:clamp(28px,4vw,42px);line-height:1.08;margin:0 0 12px;color:var(--paper);}
+  .sub{color:var(--muted);max-width:680px;font-size:15px;line-height:1.55;margin:0;}
+
+  /* Debt clock — signature element */
+  .clock{
+    margin-top:26px;
+    background:linear-gradient(180deg, var(--panel-2), var(--panel));
+    border:1px solid var(--line);
+    border-radius:6px;
+    padding:20px 22px;
+    display:flex;
+    flex-wrap:wrap;
+    gap:28px;
+    align-items:center;
+    justify-content:space-between;
+  }
+  .clock-item{min-width:150px;}
+  .clock-label{font-family:'IBM Plex Mono',monospace;font-size:10.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--muted);margin-bottom:6px;}
+  .clock-value{font-family:'IBM Plex Mono',monospace;font-size:clamp(18px,2.6vw,26px);font-weight:600;color:var(--paper);font-variant-numeric:tabular-nums;}
+  .clock-value.pulse{color:var(--gold);}
+  .clock-note{font-size:11px;color:var(--muted);margin-top:4px;}
+
+  /* Layout */
+  .grid{display:grid;grid-template-columns:340px 1fr;gap:24px;margin-top:32px;}
+  @media (max-width:920px){.grid{grid-template-columns:1fr;}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:22px 22px 24px;}
+  .card + .card{margin-top:20px;}
+  h2{font-family:'Fraunces',serif;font-weight:600;font-size:19px;color:var(--paper);margin:0 0 4px;}
+  .card-note{color:var(--muted);font-size:12.5px;margin:0 0 18px;line-height:1.5;}
+
+  /* Controls */
+  .field{margin-bottom:18px;}
+  .field:last-child{margin-bottom:0;}
+  .field-label{display:flex;justify-content:space-between;align-items:baseline;font-size:13px;margin-bottom:8px;}
+  .field-label span:first-child{color:var(--text);}
+  .field-label .val{font-family:'IBM Plex Mono',monospace;color:var(--gold);font-weight:600;font-size:13px;}
+  input[type=range]{
+    -webkit-appearance:none;width:100%;height:3px;border-radius:2px;
+    background:linear-gradient(90deg, var(--gold) 0%, var(--gold) var(--pct,50%), rgba(255,255,255,0.12) var(--pct,50%));
+    outline:none;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none;width:15px;height:15px;border-radius:50%;
+    background:var(--gold);border:2px solid #0d1b2a;cursor:pointer;
+    box-shadow:0 0 0 1px var(--gold-soft);
+  }
+  input[type=range]::-moz-range-thumb{
+    width:15px;height:15px;border-radius:50%;background:var(--gold);border:2px solid #0d1b2a;cursor:pointer;
+  }
+
+  .presets{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:20px;}
+  .preset-btn{
+    font-family:'IBM Plex Mono',monospace;font-size:11px;letter-spacing:.03em;
+    background:transparent;border:1px solid var(--line);color:var(--muted);
+    padding:8px 12px;border-radius:4px;cursor:pointer;transition:all .15s ease;
+  }
+  .preset-btn:hover{border-color:var(--gold);color:var(--paper);}
+  .preset-btn.active{background:var(--gold);color:#1a1305;border-color:var(--gold);font-weight:600;}
+
+  /* KPIs */
+  .kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:22px;}
+  @media (max-width:760px){.kpi-row{grid-template-columns:repeat(2,1fr);}}
+  .kpi{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:14px 16px;}
+  .kpi-label{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;font-family:'IBM Plex Mono',monospace;}
+  .kpi-value{font-family:'IBM Plex Mono',monospace;font-size:22px;font-weight:600;color:var(--paper);}
+  .kpi-delta{font-size:11.5px;margin-top:4px;font-family:'IBM Plex Mono',monospace;}
+  .kpi-delta.up{color:var(--red);}
+  .kpi-delta.down{color:var(--green);}
+
+  .chart-box{background:var(--panel-2);border:1px solid var(--line);border-radius:5px;padding:18px;margin-bottom:20px;}
+  .chart-title{font-family:'IBM Plex Mono',monospace;font-size:11.5px;letter-spacing:.05em;text-transform:uppercase;color:var(--muted);margin-bottom:14px;}
+  canvas{max-height:280px;}
+
+  table{width:100%;border-collapse:collapse;font-family:'IBM Plex Mono',monospace;font-size:12px;}
+  th,td{text-align:right;padding:8px 10px;border-bottom:1px solid var(--line);white-space:nowrap;}
+  th:first-child,td:first-child{text-align:left;color:var(--muted);}
+  th{color:var(--gold);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:.04em;}
+  tbody tr:hover{background:rgba(201,162,74,0.05);}
+  .table-scroll{overflow-x:auto;}
+
+  details{margin-top:6px;}
+  summary{cursor:pointer;font-family:'IBM Plex Mono',monospace;font-size:12px;color:var(--gold);letter-spacing:.03em;list-style:none;}
+  summary::-webkit-details-marker{display:none;}
+  summary:before{content:"+ ";}
+  details[open] summary:before{content:"– ";}
+  .methodo p, .methodo li{color:var(--muted);font-size:13px;line-height:1.65;}
+  .methodo ul{padding-left:18px;}
+  .methodo a{color:#cfe3d3;}
+  .methodo code{background:rgba(255,255,255,0.06);padding:1px 5px;border-radius:3px;font-size:12px;}
+
+  footer{margin-top:36px;padding-top:20px;border-top:1px solid var(--line);color:var(--muted);font-size:12px;line-height:1.6;}
+  footer a{color:#cfe3d3;}
+
+  /* Mission mapping */
+  .toggle-row{display:flex;align-items:center;gap:10px;margin-bottom:16px;}
+  .toggle-row input{width:16px;height:16px;accent-color:var(--gold);}
+  .toggle-row label{font-size:13px;color:var(--paper);cursor:pointer;}
+  .subsector-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:18px;}
+  .missions-block{display:none;}
+  .missions-block.on{display:block;}
+  .mtable{width:100%;border-collapse:collapse;font-size:12px;}
+  .mtable th,.mtable td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:left;}
+  .mtable th{color:var(--gold);font-family:'IBM Plex Mono',monospace;font-size:10.5px;text-transform:uppercase;font-weight:600;}
+  .mtable td.num{font-family:'IBM Plex Mono',monospace;text-align:right;color:var(--paper);}
+  .mtable .min{color:var(--muted);font-size:11px;}
+  .mtable input{width:56px;background:rgba(255,255,255,0.06);border:1px solid var(--line);color:var(--gold);font-family:'IBM Plex Mono',monospace;font-size:12px;text-align:right;border-radius:3px;padding:3px 5px;}
+  .mtable-note{font-size:11.5px;color:var(--muted);margin-top:10px;line-height:1.5;}
+  .weighted-badge{display:inline-block;margin-top:10px;font-family:'IBM Plex Mono',monospace;font-size:12.5px;color:var(--gold);background:rgba(201,162,74,0.1);border:1px solid var(--line);border-radius:4px;padding:6px 10px;}
+
+  /* Live sources panel */
+  .src-row{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--line);font-size:12.5px;}
+  .src-row:last-child{border-bottom:none;}
+  .src-name{color:var(--text);}
+  .src-status{font-family:'IBM Plex Mono',monospace;font-size:11px;color:var(--muted);}
+  .src-status.ok{color:var(--green);}
+  .src-status.err{color:var(--red);}
+  .refresh-btn{font-family:'IBM Plex Mono',monospace;font-size:11.5px;background:var(--gold);color:#1a1305;border:none;padding:8px 14px;border-radius:4px;cursor:pointer;font-weight:600;}
+  .refresh-btn:hover{opacity:.9;}
+  .refresh-btn:disabled{opacity:.5;cursor:default;}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <header>
+    <div class="eyebrow">Finances publiques — France · Base 2020, comptes nationaux</div>
+    <h1>Simulateur des comptes publics</h1>
+    <p class="sub">Un outil pour explorer, sur dix ans, la marge de manœuvre budgétaire de la France : croissance, dépenses, prélèvements, taux d'intérêt. Point de départ calé sur les derniers chiffres officiels publiés (2025).</p>
+
+    <div class="clock">
+      <div class="clock-item">
+        <div class="clock-label">Dette publique — fin 2025</div>
+        <div class="clock-value" id="clockDebt">3 460,5 Md€</div>
+        <div class="clock-note">115,6 % du PIB · Insee, notification mars 2026</div>
+      </div>
+      <div class="clock-item">
+        <div class="clock-label">Estimation en continu</div>
+        <div class="clock-value pulse" id="clockLive">—</div>
+        <div class="clock-note">Extrapolation au rythme d'endettement 2025 (~4,8 Md€/semaine), à titre d'illustration</div>
+      </div>
+      <div class="clock-item">
+        <div class="clock-label">Charge d'intérêts 2025</div>
+        <div class="clock-value">64,7 Md€</div>
+        <div class="clock-note">+11,2 % sur un an · taux apparent ≈ 2,0 %</div>
+      </div>
+      <div class="clock-item">
+        <div class="clock-label">Déficit public 2025</div>
+        <div class="clock-value">152,5 Md€</div>
+        <div class="clock-note">5,1 % du PIB · objectif traité UE : 3 %</div>
+      </div>
+    </div>
+  </header>
+
+  <div class="grid">
+    <!-- LEFT: controls -->
+    <div>
+      <div class="card">
+        <h2>Scénarios rapides</h2>
+        <p class="card-note">Trois lectures possibles du débat public actuel. Ajustez ensuite librement chaque curseur.</p>
+        <div class="presets">
+          <button class="preset-btn active" data-preset="central">Trajectoire au fil de l'eau</button>
+          <button class="preset-btn" data-preset="ajustement">Retour sous 3 % en 2029</button>
+          <button class="preset-btn" data-preset="statuquo">Dérive sans effort</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Hypothèses macro</h2>
+        <p class="card-note">Croissance et inflation déterminent la dynamique du PIB nominal, dénominateur du ratio d'endettement.</p>
+        <div class="field">
+          <div class="field-label"><span>Croissance réelle du PIB</span><span class="val" id="v_growth">1,0 %/an</span></div>
+          <input type="range" id="growth" min="-1" max="3" step="0.1" value="1.0">
+        </div>
+        <div class="field">
+          <div class="field-label"><span>Inflation (déflateur PIB)</span><span class="val" id="v_inflation">1,8 %/an</span></div>
+          <input type="range" id="inflation" min="0" max="4" step="0.1" value="1.8">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Recettes</h2>
+        <p class="card-note">Recettes publiques totales (prélèvements obligatoires + recettes non fiscales), exprimées en % du PIB.</p>
+        <div class="field">
+          <div class="field-label"><span>Taux de recettes / PIB</span><span class="val" id="v_revenue">52,1 %</span></div>
+          <input type="range" id="revenue" min="48" max="56" step="0.1" value="52.1">
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>Dépenses</h2>
+        <p class="card-note">Croissance des dépenses primaires (hors charge d'intérêts) en volume, au-delà de l'inflation. Un effort structurel peut s'y ajouter.</p>
+        <div class="field">
+          <div class="field-label"><span>Croissance des dépenses primaires (volume)</span><span class="val" id="v_spending">1,2 %/an</span></div>
+          <input type="range" id="spending" min="-1" max="3" step="0.1" value="1.2">
+        </div>
+        <div class="field">
+          <div class="field-label"><span>Effort structurel additionnel</span><span class="val" id="v_effort">0 Md€/an</span></div>
+          <input type="range" id="effort" min="0" max="30" step="1" value="0">
+        </div>
+        <div class="toggle-row">
+          <input type="checkbox" id="missionMode">
+          <label for="missionMode">Piloter par ministère / mission (sous-secteurs + budget de l'État)</label>
+        </div>
+        <div class="missions-block" id="missionsBlock">
+          <div class="field">
+            <div class="field-label"><span>Sécurité sociale (ASSO) — volume</span><span class="val" id="v_asso">1,8 %/an</span></div>
+            <input type="range" id="assoGrowth" min="-1" max="4" step="0.1" value="1.8">
+          </div>
+          <div class="field">
+            <div class="field-label"><span>Collectivités locales (APUL) — volume</span><span class="val" id="v_apul">0,8 %/an</span></div>
+            <input type="range" id="apulGrowth" min="-1" max="4" step="0.1" value="0.8">
+          </div>
+        </div>
+      </div>
+
+      <div class="card missions-block" id="missionsTableCard">
+        <h2>Budget de l'État par mission</h2>
+        <p class="card-note">LFI 2026 (promulguée le 19/02/2026), crédits de paiement, hors CAS Pensions et hors charge de la dette. Ajustez la croissance annuelle propre à chaque mission ; la moyenne pondérée remplace la croissance État dans le modèle.</p>
+        <div class="table-scroll">
+          <table class="mtable" id="missionTable">
+            <thead><tr><th>Mission</th><th>Ministère</th><th class="num">Md€</th><th class="num">%/an</th></tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+        <div class="weighted-badge" id="missionWeighted">Moyenne pondérée État : —</div>
+        <p class="mtable-note">Périmètre pilotable ≈ 341 Md€ sur les ~490 Md€ de dépenses de l'État (hors pensions CAS, hors remboursements et dégrèvements, hors charge de la dette — ces deux derniers postes ne sont pas des leviers de politique publique). Source : rapports de la commission des finances du Sénat sur le PLF 2026, budget.gouv.fr, Wikipédia (Budget de l'État français en 2026).</p>
+      </div>
+
+      <div class="card">
+        <h2>Dette &amp; taux d'intérêt</h2>
+        <p class="card-note">La charge d'intérêts dépend du taux apparent de la dette, qui converge progressivement vers le taux de marché à mesure que la dette existante est refinancée.</p>
+        <div class="field">
+          <div class="field-label"><span>Taux de marché sur la dette nouvelle</span><span class="val" id="v_marginal">3,3 %</span></div>
+          <input type="range" id="marginal" min="1" max="6" step="0.1" value="3.3">
+        </div>
+        <div class="field">
+          <div class="field-label"><span>Part de la dette refinancée chaque année</span><span class="val" id="v_refi">12 %</span></div>
+          <input type="range" id="refi" min="5" max="25" step="1" value="12">
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT: results -->
+    <div>
+      <div class="kpi-row">
+        <div class="kpi">
+          <div class="kpi-label">Dette / PIB en 2035</div>
+          <div class="kpi-value" id="kpiDebt2035">—</div>
+          <div class="kpi-delta" id="kpiDebtDelta">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Déficit / PIB en 2035</div>
+          <div class="kpi-value" id="kpiDeficit2035">—</div>
+          <div class="kpi-delta" id="kpiDeficitDelta">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Charge d'intérêts en 2035</div>
+          <div class="kpi-value" id="kpiInterest2035">—</div>
+          <div class="kpi-delta" id="kpiInterestDelta">—</div>
+        </div>
+        <div class="kpi">
+          <div class="kpi-label">Année de retour sous 3 %</div>
+          <div class="kpi-value" id="kpiCross3">—</div>
+          <div class="kpi-delta">seuil du traité de Maastricht</div>
+        </div>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-title">Dette publique, en % du PIB (2025–2035)</div>
+        <canvas id="chartDebt"></canvas>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-title">Solde public, en % du PIB — barres au-dessus de zéro = excédent</div>
+        <canvas id="chartDeficit"></canvas>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-title">Charge de la dette (intérêts), en Md€ et en % des dépenses totales</div>
+        <canvas id="chartInterest"></canvas>
+      </div>
+
+      <div class="chart-box">
+        <div class="chart-title">Détail annuel</div>
+        <div class="table-scroll">
+          <table id="dataTable">
+            <thead>
+              <tr>
+                <th>Année</th>
+                <th>PIB (Md€)</th>
+                <th>Recettes (Md€)</th>
+                <th>Dépenses (Md€)</th>
+                <th>dont intérêts</th>
+                <th>Solde (Md€)</th>
+                <th>Solde (%PIB)</th>
+                <th>Dette (Md€)</th>
+                <th>Dette (%PIB)</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="card">
+        <details>
+          <summary>Méthodologie, hypothèses et limites du modèle</summary>
+          <div class="methodo">
+            <p><strong>Point de départ (2025).</strong> PIB nominal ≈ 2 990 Md€ ; dette publique au sens de Maastricht : 3 460,5 Md€ (115,6 % du PIB) ; dépenses publiques : 57,2 % du PIB ; recettes publiques : 52,1 % du PIB ; déficit : 152,5 Md€ (5,1 % du PIB) ; charge d'intérêts : 64,7 Md€, soit un taux apparent d'environ 2,0 % appliqué au stock de dette de fin 2024. Source : Insee, comptes nationaux des administrations publiques, notification de mars 2026.</p>
+            <p><strong>Logique de calcul, année par année :</strong></p>
+            <ul>
+              <li>PIB(t) = PIB(t-1) × (1 + croissance réelle) × (1 + inflation)</li>
+              <li>Taux apparent(t) = taux apparent(t-1) + part refinancée × (taux de marché − taux apparent(t-1)) — traduit le renouvellement progressif du stock de dette à un taux différent du taux historique</li>
+              <li>Charge d'intérêts(t) = taux apparent(t) × Dette(t-1)</li>
+              <li>Dépenses primaires(t) = Dépenses primaires(t-1) × (1 + croissance volume) × (1 + inflation) − effort structurel</li>
+              <li>Recettes(t) = taux de recettes × PIB(t)</li>
+              <li>Solde(t) = Recettes(t) − Dépenses primaires(t) − Charge d'intérêts(t)</li>
+              <li>Dette(t) = Dette(t-1) − Solde(t)</li>
+            </ul>
+            <p><strong>Limites assumées.</strong> Ce modèle est un outil pédagogique d'ordre de grandeur, pas une prévision de la Direction générale du Trésor ou de la Commission européenne. Il simplifie plusieurs éléments réels : structure fine de la maturité de la dette (l'AFT gère une maturité moyenne de l'ordre de 8 à 9 ans, approximée ici par un paramètre unique de refinancement annuel), effets d'élasticité des recettes fiscales à la conjoncture, opérations exceptionnelles (flux avec l'Union européenne, garanties, ajustements stock-flux), et écarts entre soldes budgétaire et maastrichtien. Les résultats doivent être lus comme des trajectoires « toutes choses égales par ailleurs », utiles pour comparer des hypothèses entre elles plutôt que comme une prédiction ponctuelle.</p>
+            <p><strong>Sources et données ouvertes utilisées :</strong></p>
+            <ul>
+              <li><a href="https://www.insee.fr/fr/statistiques/8956575" target="_blank" rel="noopener">Insee — Comptes nationaux des administrations publiques 2025</a> (déficit, dette, dépenses, recettes)</li>
+              <li><a href="https://www.insee.fr/fr/statistiques/8955019" target="_blank" rel="noopener">Insee — Dette publique trimestrielle, T4 2025</a></li>
+              <li><a href="https://www.data.gouv.fr/datasets/produit-interieur-brut-pib-et-grands-agregats-economiques" target="_blank" rel="noopener">data.gouv.fr — PIB et grands agrégats économiques</a></li>
+              <li><a href="https://www.data.gouv.fr/dataservices/api-bdm" target="_blank" rel="noopener">data.gouv.fr — API BDM Insee</a> (séries chronologiques réutilisables)</li>
+              <li><a href="https://www.ccomptes.fr/fr/publications/la-situation-des-finances-publiques-debut-2026" target="_blank" rel="noopener">Cour des comptes — La situation des finances publiques, début 2026</a></li>
+              <li><a href="https://www.fipeco.fr/fiche/Le-montant-et-l%C3%A9volution-de-la-dette-publique" target="_blank" rel="noopener">FIPECO — Montant et évolution de la dette publique</a></li>
+              <li><a href="https://www.performance-publique.budget.gouv.fr/" target="_blank" rel="noopener">performance-publique.budget.gouv.fr</a> — documents budgétaires (PLF/PLFSS)</li>
+            </ul>
+          </div>
+        </details>
+      </div>
+
+      <div class="card">
+        <h2>Fraîcheur des sources (API live)</h2>
+        <p class="card-note">Interroge en direct les API publiques et gratuites de data.gouv.fr / data.economie.gouv.fr (aucune clé requise) pour vérifier que les jeux de données de référence sont toujours publiés et récupérer leur date de dernière mise à jour.</p>
+        <div id="srcList"></div>
+        <button class="refresh-btn" id="refreshSrc" style="margin-top:14px;">Vérifier maintenant</button>
+        <p class="mtable-note">Note : l'API officielle de l'Insee (api.insee.fr) exige un compte et une clé gratuits — elle n'est donc pas interrogeable anonymement ici. Les agrégats macro (PIB, dette, déficit) restent calés sur la dernière notification Insee et sont à mettre à jour manuellement à chaque publication trimestrielle.</p>
+      </div>
+    </div>
+  </div>
+
+  <footer>
+    Simulateur indépendant à but pédagogique, construit à partir de données publiques (Insee, data.gouv.fr, Cour des comptes, FIPECO). Ne constitue pas une prévision officielle. Dernière calibration : chiffres 2025 publiés le 27 mars 2026.
+  </footer>
+</div>
+
+<script>
+// ---------- Baseline (year 2025) ----------
+const BASE = {
+  year: 2025,
+  gdp: 2990,          // Md€, nominal GDP
+  debt: 3460.5,        // Md€, Maastricht debt end of 2025
+  debtPrev: 3306.1,     // Md€, Maastricht debt end of 2024 (for apparent rate calc)
+  totalExpenditure: 1710.5, // Md€ (~57.2% of GDP)
+  interest: 64.7,       // Md€
+};
+BASE.primaryExpenditure = BASE.totalExpenditure - BASE.interest;
+BASE.apparentRate = BASE.interest / BASE.debtPrev; // ~1.96%
+
+// Sous-secteurs des administrations publiques (INSEE, ordre de grandeur 2025, Md€)
+const SECTORS = { etat: 490, asso: 705, apul: 295 };
+SECTORS.other = BASE.primaryExpenditure - SECTORS.etat - SECTORS.asso - SECTORS.apul;
+const SHARE = {
+  etat: SECTORS.etat / BASE.primaryExpenditure,
+  asso: SECTORS.asso / BASE.primaryExpenditure,
+  apul: SECTORS.apul / BASE.primaryExpenditure,
+  other: SECTORS.other / BASE.primaryExpenditure,
+};
+
+// Missions du budget général de l'État — LFI 2026 (CP, Md€, hors CAS Pensions et hors charge de la dette)
+const MISSIONS = [
+  { name:'Défense', min:'Armées', amt:57.15 },
+  { name:'Enseignement scolaire', min:'Éducation nationale', amt:64.49 },
+  { name:'Recherche et enseignement supérieur', min:'Ens. sup. et Recherche', amt:31.0 },
+  { name:'Solidarité, insertion, égalité des chances', min:'Solidarités', amt:28.8 },
+  { name:'Écologie, développement, mobilité durables', min:'Transition écologique', amt:20.5 },
+  { name:'Travail, emploi', min:'Travail', amt:19.5 },
+  { name:'Sécurités', min:'Intérieur', amt:24.3 },
+  { name:'Cohésion des territoires', min:'Logement / Ville', amt:16.3 },
+  { name:'Justice', min:'Justice', amt:11.4 },
+  { name:'Administration générale et territoriale', min:'Intérieur', amt:4.7 },
+  { name:'Agriculture, alimentation, forêt', min:'Agriculture', amt:4.8 },
+  { name:'Aide publique au développement', min:'Europe et Aff. étrangères', amt:4.6 },
+  { name:'Culture', min:'Culture', amt:4.2 },
+  { name:'Relations avec les collectivités territoriales', min:'Collectivités territoriales', amt:4.3 },
+  { name:'Autres missions (Justice, Outre-mer, Santé, etc.)', min:'—', amt:45.0 },
+];
+const MISSIONS_TOTAL = MISSIONS.reduce((s,m)=>s+m.amt,0);
+
+const HORIZON = 10; // years 2026..2035
+
+const presets = {
+  central:   { growth:1.0, inflation:1.8, revenue:52.1, spending:1.2, effort:0,  marginal:3.3, refi:12, asso:1.8, apul:0.8 },
+  ajustement:{ growth:1.1, inflation:1.8, revenue:53.3, spending:0.3, effort:8,  marginal:3.2, refi:12, asso:1.2, apul:0.5 },
+  statuquo:  { growth:0.7, inflation:1.8, revenue:51.5, spending:1.8, effort:0,  marginal:4.0, refi:14, asso:2.4, apul:1.3 },
+};
+
+function renderMissionTable(){
+  const tbody = document.querySelector('#missionTable tbody');
+  tbody.innerHTML = '';
+  MISSIONS.forEach((m,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `<td>${m.name}</td><td class="min">${m.min}</td><td class="num">${fmtNum(m.amt,1)}</td>
+      <td class="num"><input type="number" step="0.5" value="1.2" data-i="${i}"></td>`;
+    tbody.appendChild(tr);
+  });
+  tbody.querySelectorAll('input').forEach(inp=> inp.addEventListener('input', update));
+}
+
+function toggleMissionMode(){
+  const on = missionModeEl.checked;
+  document.getElementById('missionsBlock').classList.toggle('on', on);
+  document.getElementById('missionsTableCard').classList.toggle('on', on);
+  update();
+}
+
+const ids = ['growth','inflation','revenue','spending','effort','marginal','refi','assoGrowth','apulGrowth'];
+const els = {};
+ids.forEach(id => els[id] = document.getElementById(id));
+const missionModeEl = document.getElementById('missionMode');
+
+function fmtPct(v, d=1){ return v.toLocaleString('fr-FR',{minimumFractionDigits:d, maximumFractionDigits:d}).replace('.',',') + ' %'; }
+function fmtMd(v, d=0){ return v.toLocaleString('fr-FR',{minimumFractionDigits:d, maximumFractionDigits:d}).replace('.',',') + ' Md€'; }
+function fmtNum(v, d=1){ return v.toLocaleString('fr-FR',{minimumFractionDigits:d, maximumFractionDigits:d}).replace('.',','); }
+
+function updateSliderFill(el){
+  const min = parseFloat(el.min), max = parseFloat(el.max), val = parseFloat(el.value);
+  const pct = ((val-min)/(max-min))*100;
+  el.style.setProperty('--pct', pct+'%');
+}
+
+function weightedMissionGrowth(){
+  const inputs = document.querySelectorAll('#missionTable input');
+  let sum = 0;
+  inputs.forEach((inp,i)=> sum += MISSIONS[i].amt * (parseFloat(inp.value)||0));
+  return sum / MISSIONS_TOTAL;
+}
+
+function readInputs(){
+  const missionMode = missionModeEl.checked;
+  return {
+    growth: parseFloat(els.growth.value)/100,
+    inflation: parseFloat(els.inflation.value)/100,
+    revenue: parseFloat(els.revenue.value)/100,
+    spending: parseFloat(els.spending.value)/100,
+    effort: parseFloat(els.effort.value),
+    marginal: parseFloat(els.marginal.value)/100,
+    refi: parseFloat(els.refi.value)/100,
+    missionMode,
+    etatGrowth: missionMode ? weightedMissionGrowth()/100 : parseFloat(els.spending.value)/100,
+    assoGrowth: missionMode ? parseFloat(els.assoGrowth.value)/100 : parseFloat(els.spending.value)/100,
+    apulGrowth: missionMode ? parseFloat(els.apulGrowth.value)/100 : parseFloat(els.spending.value)/100,
+  };
+}
+
+function simulate(p){
+  let gdp = BASE.gdp;
+  let debt = BASE.debt;
+  let blocks = { etat: SECTORS.etat, asso: SECTORS.asso, apul: SECTORS.apul, other: SECTORS.other };
+  let apparent = BASE.apparentRate;
+
+  const out = [{
+    year: BASE.year,
+    gdp: BASE.gdp,
+    revenue: BASE.totalExpenditure - 152.5,
+    expenditure: BASE.totalExpenditure,
+    interest: BASE.interest,
+    balance: -152.5,
+    balancePctGDP: -152.5/BASE.gdp*100,
+    debt: BASE.debt,
+    debtPctGDP: BASE.debt/BASE.gdp*100,
+  }];
+
+  for(let i=1;i<=HORIZON;i++){
+    gdp = gdp * (1+p.growth) * (1+p.inflation);
+    apparent = apparent + p.refi * (p.marginal - apparent);
+    const interest = apparent * debt;
+
+    blocks.etat = Math.max(0, blocks.etat*(1+p.etatGrowth)*(1+p.inflation) - p.effort);
+    blocks.asso = blocks.asso*(1+p.assoGrowth)*(1+p.inflation);
+    blocks.apul = blocks.apul*(1+p.apulGrowth)*(1+p.inflation);
+    blocks.other = blocks.other*(1+p.spending)*(1+p.inflation);
+    const primExp = blocks.etat + blocks.asso + blocks.apul + blocks.other;
+
+    const expenditure = primExp + interest;
+    const revenue = p.revenue * gdp;
+    const balance = revenue - expenditure;
+    debt = debt - balance;
+
+    out.push({
+      year: BASE.year + i,
+      gdp, revenue, expenditure, interest, balance,
+      balancePctGDP: balance/gdp*100,
+      debt,
+      debtPctGDP: debt/gdp*100,
+    });
+  }
+  return out;
+}
+
+let debtChart, deficitChart, interestChart;
+
+function renderCharts(data){
+  const labels = data.map(d=>d.year);
+
+  const ctxDebt = document.getElementById('chartDebt').getContext('2d');
+  const ctxDeficit = document.getElementById('chartDeficit').getContext('2d');
+  const ctxInterest = document.getElementById('chartInterest').getContext('2d');
+
+  const gridColor = 'rgba(255,255,255,0.06)';
+  const tickColor = '#93a8bd';
+
+  if(debtChart) debtChart.destroy();
+  debtChart = new Chart(ctxDebt, {
+    type:'line',
+    data:{ labels, datasets:[
+      { label:'Dette / PIB', data:data.map(d=>d.debtPctGDP), borderColor:'#c9a24a', backgroundColor:'rgba(201,162,74,0.12)', fill:true, tension:0.25, pointRadius:2, borderWidth:2 },
+      { label:'Seuil Maastricht (60 %)', data:data.map(()=>60), borderColor:'rgba(147,168,189,0.5)', borderDash:[4,4], pointRadius:0, borderWidth:1 },
+    ]},
+    options:{
+      responsive:true,
+      plugins:{ legend:{ labels:{ color:tickColor, font:{family:"IBM Plex Mono", size:11} } } },
+      scales:{
+        x:{ ticks:{color:tickColor}, grid:{color:gridColor} },
+        y:{ ticks:{color:tickColor, callback:v=>v+'%'}, grid:{color:gridColor} }
+      }
+    }
+  });
+
+  if(deficitChart) deficitChart.destroy();
+  deficitChart = new Chart(ctxDeficit, {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Solde public (% PIB)', data:data.map(d=>d.balancePctGDP),
+        backgroundColor:data.map(d=>d.balancePctGDP<0 ? 'rgba(193,68,60,0.75)' : 'rgba(60,156,115,0.75)') },
+      { label:'Seuil des 3 %', data:data.map(()=>-3), type:'line', borderColor:'rgba(147,168,189,0.6)', borderDash:[4,4], pointRadius:0, borderWidth:1 },
+    ]},
+    options:{
+      responsive:true,
+      plugins:{ legend:{ labels:{ color:tickColor, font:{family:"IBM Plex Mono", size:11} } } },
+      scales:{
+        x:{ ticks:{color:tickColor}, grid:{color:gridColor} },
+        y:{ ticks:{color:tickColor, callback:v=>v+'%'}, grid:{color:gridColor} }
+      }
+    }
+  });
+
+  if(interestChart) interestChart.destroy();
+  interestChart = new Chart(ctxInterest, {
+    type:'bar',
+    data:{ labels, datasets:[
+      { label:'Charge d\'intérêts (Md€)', data:data.map(d=>d.interest), backgroundColor:'rgba(201,162,74,0.65)', yAxisID:'y' },
+      { label:'% des dépenses totales', data:data.map(d=>d.interest/d.expenditure*100), type:'line', borderColor:'#7fb8a3', pointRadius:2, yAxisID:'y1', borderWidth:2 },
+    ]},
+    options:{
+      responsive:true,
+      plugins:{ legend:{ labels:{ color:tickColor, font:{family:"IBM Plex Mono", size:11} } } },
+      scales:{
+        x:{ ticks:{color:tickColor}, grid:{color:gridColor} },
+        y:{ position:'left', ticks:{color:tickColor, callback:v=>v+' Md€'}, grid:{color:gridColor} },
+        y1:{ position:'right', ticks:{color:tickColor, callback:v=>v+'%'}, grid:{display:false} }
+      }
+    }
+  });
+}
+
+function renderTable(data){
+  const tbody = document.querySelector('#dataTable tbody');
+  tbody.innerHTML = '';
+  data.forEach(d=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td>${d.year}</td>
+      <td>${fmtNum(d.gdp,0)}</td>
+      <td>${fmtNum(d.revenue,0)}</td>
+      <td>${fmtNum(d.expenditure,0)}</td>
+      <td>${fmtNum(d.interest,1)}</td>
+      <td>${fmtNum(d.balance,0)}</td>
+      <td>${fmtNum(d.balancePctGDP,1)}</td>
+      <td>${fmtNum(d.debt,0)}</td>
+      <td>${fmtNum(d.debtPctGDP,1)}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+}
+
+function renderKPIs(data){
+  const last = data[data.length-1];
+  const first = data[0];
+  document.getElementById('kpiDebt2035').textContent = fmtNum(last.debtPctGDP,1)+' %';
+  const debtDelta = last.debtPctGDP - first.debtPctGDP;
+  const dd = document.getElementById('kpiDebtDelta');
+  dd.textContent = (debtDelta>=0?'+':'') + fmtNum(debtDelta,1) + ' pts vs 2025';
+  dd.className = 'kpi-delta ' + (debtDelta>0?'up':'down');
+
+  document.getElementById('kpiDeficit2035').textContent = fmtNum(last.balancePctGDP,1)+' %';
+  const defDelta = last.balancePctGDP - first.balancePctGDP;
+  const de = document.getElementById('kpiDeficitDelta');
+  de.textContent = (defDelta>=0?'+':'') + fmtNum(defDelta,1) + ' pts vs 2025';
+  de.className = 'kpi-delta ' + (defDelta<0?'up':'down');
+
+  document.getElementById('kpiInterest2035').textContent = fmtMd(last.interest,1);
+  const intDelta = last.interest - first.interest;
+  const ie = document.getElementById('kpiInterestDelta');
+  ie.textContent = '+' + fmtMd(intDelta,1) + ' vs 2025';
+  ie.className = 'kpi-delta up';
+
+  const crossing = data.find(d => d.year>2025 && d.balancePctGDP >= -3);
+  document.getElementById('kpiCross3').textContent = crossing ? crossing.year : 'après 2035';
+}
+
+function update(){
+  ids.forEach(id => updateSliderFill(els[id]));
+  document.getElementById('v_growth').textContent = fmtNum(parseFloat(els.growth.value),1)+' %/an';
+  document.getElementById('v_inflation').textContent = fmtNum(parseFloat(els.inflation.value),1)+' %/an';
+  document.getElementById('v_revenue').textContent = fmtNum(parseFloat(els.revenue.value),1)+' %';
+  document.getElementById('v_spending').textContent = fmtNum(parseFloat(els.spending.value),1)+' %/an';
+  document.getElementById('v_effort').textContent = fmtNum(parseFloat(els.effort.value),0)+' Md€/an';
+  document.getElementById('v_marginal').textContent = fmtNum(parseFloat(els.marginal.value),1)+' %';
+  document.getElementById('v_refi').textContent = fmtNum(parseFloat(els.refi.value),0)+' %';
+  document.getElementById('v_asso').textContent = fmtNum(parseFloat(els.assoGrowth.value),1)+' %/an';
+  document.getElementById('v_apul').textContent = fmtNum(parseFloat(els.apulGrowth.value),1)+' %/an';
+
+  if(missionModeEl.checked){
+    document.getElementById('missionWeighted').textContent =
+      'Moyenne pondérée État : ' + fmtNum(weightedMissionGrowth(),2) + ' %/an (remplace la croissance des dépenses primaires pour l\'État)';
+  }
+
+  const p = readInputs();
+  const data = simulate(p);
+  renderCharts(data);
+  renderTable(data);
+  renderKPIs(data);
+}
+
+function applyPreset(name){
+  const p = presets[name];
+  els.growth.value = p.growth;
+  els.inflation.value = p.inflation;
+  els.revenue.value = p.revenue;
+  els.spending.value = p.spending;
+  els.effort.value = p.effort;
+  els.marginal.value = p.marginal;
+  els.refi.value = p.refi;
+  els.assoGrowth.value = p.asso;
+  els.apulGrowth.value = p.apul;
+  update();
+}
+
+ids.forEach(id => els[id].addEventListener('input', update));
+missionModeEl.addEventListener('change', toggleMissionMode);
+renderMissionTable();
+
+document.querySelectorAll('.preset-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.preset-btn').forEach(b=>b.classList.remove('active'));
+    btn.classList.add('active');
+    applyPreset(btn.dataset.preset);
+  });
+});
+
+// Vérification live des sources — API publique data.gouv.fr (CORS ouvert, sans clé)
+const SOURCES = [
+  { label:"Comptes nationaux des administrations publiques (Insee)", q:"comptes nationaux administrations publiques" },
+  { label:"Dette des administrations publiques (Insee)", q:"dette administrations publiques trimestrielle" },
+  { label:"Situation mensuelle de l'État (DGFIP)", q:"situation mensuelle de l'état" },
+  { label:"PLF 2026 — budget vert par mission", q:"PLF 2026 budget vert" },
+];
+
+function renderSrcList(items){
+  const el = document.getElementById('srcList');
+  el.innerHTML = items.map(it => `
+    <div class="src-row">
+      <span class="src-name">${it.label}</span>
+      <span class="src-status ${it.status}">${it.text}</span>
+    </div>`).join('');
+}
+
+async function checkSources(){
+  const btn = document.getElementById('refreshSrc');
+  btn.disabled = true; btn.textContent = 'Vérification…';
+  renderSrcList(SOURCES.map(s=>({label:s.label, status:'', text:'…'})));
+  const results = await Promise.all(SOURCES.map(async s=>{
+    try{
+      const r = await fetch('https://www.data.gouv.fr/api/1/datasets/?q='+encodeURIComponent(s.q)+'&page_size=1');
+      if(!r.ok) throw new Error('http '+r.status);
+      const j = await r.json();
+      const d = j.data && j.data[0];
+      if(!d) return {label:s.label, status:'err', text:'aucun résultat'};
+      const date = (d.last_update||'').slice(0,10);
+      return {label:s.label, status:'ok', text:'à jour · '+date};
+    }catch(e){
+      return {label:s.label, status:'err', text:'API indisponible'};
+    }
+  }));
+  renderSrcList(results);
+  btn.disabled = false; btn.textContent = 'Vérifier maintenant';
+}
+document.getElementById('refreshSrc').addEventListener('click', checkSources);
+renderSrcList(SOURCES.map(s=>({label:s.label, status:'', text:'non vérifié'})));
+
+// Live debt clock — illustrative extrapolation from 2025 pace of debt increase
+(function liveClock(){
+  const el = document.getElementById('clockLive');
+  const paceMdPerSecond = ( (BASE.debt - BASE.debtPrev) / 365 / 86400 ); // Md€ per second in 2025
+  const start = Date.now();
+  const startValue = BASE.debt;
+  function tick(){
+    const elapsedSec = (Date.now()-start)/1000;
+    const val = startValue + paceMdPerSecond*elapsedSec;
+    el.textContent = val.toLocaleString('fr-FR',{minimumFractionDigits:3, maximumFractionDigits:3}).replace('.',',') + ' Md€';
+    requestAnimationFrame(tick);
+  }
+  tick();
+})();
+
+update();
+</script>
+</body>
+</html>
