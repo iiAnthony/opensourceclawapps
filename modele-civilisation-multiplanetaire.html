@@ -1,0 +1,750 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Course Terre / Multiplanétaire — Modèle de système</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;700&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500&display=swap');
+
+:root{
+  --bg:#0A0E12; --panel:#11161C; --line:#232B33;
+  --text:#E8EDF2; --muted:#7C8896;
+  --copper:#E07A4F; --cyan:#4FC3D9; --danger:#E2574C; --green:#5FD68A;
+}
+*{box-sizing:border-box;}
+body{margin:0; background:var(--bg); color:var(--text); font-family:'IBM Plex Sans',sans-serif;}
+:focus-visible{outline:2px solid var(--cyan); outline-offset:2px;}
+.shell{max-width:1400px; margin:0 auto; padding:32px 24px 70px;}
+
+.eyebrow{font:600 12px/1 'IBM Plex Mono',monospace; letter-spacing:.14em; text-transform:uppercase; color:var(--cyan); margin:0 0 10px;}
+h1{font:700 clamp(26px,4vw,42px)/1.08 'Space Grotesk',sans-serif; margin:0 0 10px;}
+.subhead{font:400 15px/1.6 'IBM Plex Sans'; color:var(--muted); max-width:680px; margin:0;}
+
+.race{display:grid; grid-template-columns:1fr auto 1fr; gap:22px; align-items:center;
+  background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:22px 26px; margin:30px 0 10px;}
+.race-label{display:flex; justify-content:space-between; font:500 13px 'IBM Plex Mono'; color:var(--muted); margin-bottom:9px;}
+.race-name{color:var(--text);}
+.race-bar{position:relative; height:14px; background:#161c22; border-radius:7px; overflow:hidden; border:1px solid var(--line);}
+.race-fill{position:absolute; left:0; top:0; height:100%; width:0%; border-radius:7px; transition:width .12s linear;}
+.race-fill--terre{background:linear-gradient(90deg,#7a3f23,var(--copper));}
+.race-fill--espace{background:linear-gradient(90deg,#1c5e68,var(--cyan));}
+.race-clock{font:700 22px 'Space Grotesk'; text-align:center; padding:0 14px; border-left:1px solid var(--line); border-right:1px solid var(--line);}
+.race-clock span{display:block; font:500 10px 'IBM Plex Mono'; color:var(--muted); letter-spacing:.1em; margin-top:2px;}
+.race-verdict{min-height:20px; text-align:center; font:500 13.5px 'IBM Plex Mono'; color:var(--text); margin:14px 0 4px;}
+@media (prefers-reduced-motion:reduce){.race-fill{transition:none;}}
+
+.controls{display:flex; flex-wrap:wrap; gap:22px; align-items:center; background:var(--panel); border:1px solid var(--line);
+  border-radius:12px; padding:14px 20px; margin:18px 0 26px; font-size:13.5px;}
+.controls label{display:flex; align-items:center; gap:8px; color:var(--muted);}
+.controls input[type=range]{accent-color:var(--cyan);}
+.controls .val{font:600 13px 'IBM Plex Mono'; color:var(--text); min-width:34px; display:inline-block;}
+button{font:600 12.5px 'IBM Plex Mono'; letter-spacing:.02em; background:var(--cyan); color:#04181b; border:none;
+  padding:9px 15px; border-radius:7px; cursor:pointer;}
+button.secondary{background:transparent; color:var(--cyan); border:1px solid var(--cyan);}
+button.ghost{background:transparent; color:var(--muted); border:1px solid var(--line);}
+button:hover{filter:brightness(1.08);}
+
+.workspace{display:grid; grid-template-columns:380px 1fr; gap:22px;}
+@media (max-width:980px){.workspace{grid-template-columns:1fr;} .race{grid-template-columns:1fr;} .race-clock{border:none; padding:8px 0;}}
+
+.panel{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:16px; margin-bottom:18px;}
+.panel-head{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+.panel-head h2{font:600 12.5px 'IBM Plex Mono'; text-transform:uppercase; letter-spacing:.08em; color:var(--muted); margin:0;}
+.tablewrap{max-height:340px; overflow:auto;}
+table{width:100%; border-collapse:collapse; font:12px 'IBM Plex Mono';}
+th{position:sticky; top:0; background:var(--panel); text-align:left; color:var(--muted); font-weight:500;
+  padding:6px 4px; border-bottom:1px solid var(--line); cursor:pointer; white-space:nowrap;}
+th:hover{color:var(--text);}
+td{padding:5px 4px; border-bottom:1px solid #161c22; vertical-align:middle;}
+td input[type=text], td input[type=number]{width:100%; background:#0d1216; border:1px solid var(--line); color:var(--text);
+  font:inherit; padding:3px 5px; border-radius:4px;}
+td input[type=range]{width:84px; vertical-align:middle; accent-color:var(--cyan);}
+.row-del{background:transparent; border:none; color:#566270; cursor:pointer; font-size:15px; padding:2px 6px;}
+.row-del:hover{color:var(--danger);}
+.formula-col input{font-size:11px;}
+
+.dashboard{display:grid; grid-template-columns:repeat(auto-fit,minmax(280px,1fr)); gap:16px; align-content:start;}
+.chart-card{background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:12px 14px; height:215px; display:flex; flex-direction:column;}
+.chart-card__head{display:flex; align-items:baseline; gap:8px; margin-bottom:6px;}
+.chart-card__id{font:700 13px 'Space Grotesk';}
+.chart-card__label{font:13px 'IBM Plex Sans'; color:var(--muted); flex:1;}
+.chart-card__unit{font:10.5px 'IBM Plex Mono'; color:#566270;}
+.chart-card__canvas-wrap{flex:1; position:relative;}
+
+.sensitivity-panel{margin:0 0 22px;}
+.sens-controls{display:flex; flex-wrap:wrap; gap:18px; align-items:center; margin-bottom:14px; font-size:13.5px;}
+.sens-controls label{display:flex; align-items:center; gap:8px; color:var(--muted);}
+.sens-controls select{background:#0d1216; border:1px solid var(--line); color:var(--text); font:12px 'IBM Plex Mono'; padding:6px 8px; border-radius:6px; max-width:280px;}
+.sens-chart-wrap{height:240px; position:relative;}
+.sens-note{margin:10px 0 0; font-size:12.5px; color:var(--muted); line-height:1.5;}
+
+.about{margin-top:28px; padding:16px 20px; background:var(--panel); border:1px solid var(--line); border-radius:12px; font-size:13.5px; line-height:1.65; color:var(--muted);}
+.about summary{cursor:pointer; color:var(--text); font:600 12.5px 'IBM Plex Mono'; text-transform:uppercase; letter-spacing:.06em;}
+.about code{color:var(--cyan); font-family:'IBM Plex Mono'; font-size:.95em;}
+.about ul{margin:10px 0 0; padding-left:18px;}
+</style>
+</head>
+<body>
+<div class="shell">
+
+  <div class="eyebrow">Modèle de système — stocks &amp; flux</div>
+  <h1>Course Terre / Multiplanétaire</h1>
+  <p class="subhead">Deux horloges tournent en parallèle : la marge avant basculement critique terrestre, et l'avancement vers une préparation multiplanétaire réelle. Le modèle ci-dessous est entièrement modifiable — paramètres, stocks, équations.</p>
+
+  <section class="race">
+    <div class="race-track">
+      <div class="race-label"><span class="race-name">🌍 Limites terrestres</span><span class="race-value" id="raceTerreVal">0%</span></div>
+      <div class="race-bar"><div class="race-fill race-fill--terre" id="raceTerreFill"></div></div>
+    </div>
+    <div class="race-clock" id="raceYearWrap">0<span>année</span></div>
+    <div class="race-track">
+      <div class="race-label"><span class="race-name">🚀 Préparation spatiale</span><span class="race-value" id="raceEspaceVal">0%</span></div>
+      <div class="race-bar"><div class="race-fill race-fill--espace" id="raceEspaceFill"></div></div>
+    </div>
+  </section>
+  <div class="race-verdict" id="raceVerdict">Réglez les paramètres puis lancez la simulation.</div>
+
+  <section class="controls">
+    <label>Durée <input type="range" id="durationRange" min="50" max="500" step="10" value="200"><span class="val" id="durationVal">200 ans</span></label>
+    <label>Vitesse de lecture <input type="range" id="speedRange" min="1" max="10" step="1" value="6"></label>
+    <button id="runBtn">▶ Lancer la simulation</button>
+    <button class="secondary" id="skipBtn">⏭ Aller à la fin</button>
+    <button class="ghost" id="csvBtn">⇩ Export CSV</button>
+    <button class="ghost" id="resetBtn">↺ Réinitialiser le modèle</button>
+  </section>
+
+  <section class="panel sensitivity-panel">
+    <div class="panel-head"><h2>Analyse de sensibilité — balayage un facteur à la fois</h2></div>
+    <div class="sens-controls">
+      <label>Paramètre <select id="sensParam"></select></label>
+      <label>Points <input type="range" id="sensSteps" min="5" max="30" step="1" value="15"><span class="val" id="sensStepsVal">15</span></label>
+      <button class="secondary" id="sensRunBtn">Balayer ce paramètre</button>
+    </div>
+    <div class="sens-chart-wrap"><canvas id="sensCanvas"></canvas></div>
+    <p class="sens-note" id="sensNote">Choisissez un paramètre puis lancez le balayage : chaque point rejoue toute la simulation avec une seule valeur modifiée entre min et max, les autres restant fixes — méthode "un facteur à la fois" (OAT).</p>
+  </section>
+
+  <section class="panel sensitivity-panel">
+    <div class="panel-head"><h2>Carte 2D — qui gagne la course ?</h2></div>
+    <div class="sens-controls">
+      <label>Axe X <select id="mapParamX"></select></label>
+      <label>Axe Y <select id="mapParamY"></select></label>
+      <label>Résolution <input type="range" id="mapRes" min="4" max="14" step="1" value="8"><span class="val" id="mapResVal">8×8</span></label>
+      <button class="secondary" id="mapRunBtn">Calculer la carte</button>
+    </div>
+    <div class="sens-chart-wrap" id="mapWrap" style="height:340px;"><canvas id="mapCanvas"></canvas></div>
+    <p class="sens-note" id="mapNote">Chaque cellule rejoue une simulation complète avec ces deux paramètres fixés à ce point de la grille, tout le reste inchangé. 🟢 vert = seuil spatial (S) atteint avant le basculement terrestre — plus foncé = marge (en années) plus grande. 🟠 orange = la Terre bascule en premier — plus foncé = plus tôt. Survolez une cellule pour le détail.</p>
+  </section>
+
+  <main class="workspace">
+    <aside class="editor">
+
+      <div class="panel">
+        <div class="panel-head"><h2>Paramètres</h2><button class="secondary" id="addParamBtn">+ ajouter</button></div>
+        <div class="tablewrap">
+          <table id="paramsTable">
+            <thead><tr>
+              <th data-sort="id">id</th><th data-sort="label">libellé</th><th>valeur</th><th data-sort="min">min</th><th data-sort="max">max</th><th></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h2>Stocks &amp; équations (d/dt)</h2><button class="secondary" id="addStockBtn">+ ajouter</button></div>
+        <div class="tablewrap">
+          <table id="stocksTable">
+            <thead><tr>
+              <th data-sort="id">id</th><th data-sort="label">libellé</th><th data-sort="init">init</th><th>formule</th><th></th>
+            </tr></thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+
+    </aside>
+
+    <section class="dashboard" id="dashboard"></section>
+  </main>
+
+  <details class="about">
+    <summary>Hypothèses du modèle — à lire avant de comparer les résultats</summary>
+    <p>Modèle pédagogique de type <em>stocks &amp; flux</em> (esprit World3 / Limits to Growth), pas un outil prédictif. Pas de temps annuel, intégration d'Euler.</p>
+    <ul>
+      <li><strong>Que représente S ?</strong> Théorie retenue : le framework officiel NASA "Journey to Mars" (2015), seul cadre institutionnel spécifiquement dédié à la transition multiplanétaire (pas seulement à l'énergie civilisationnelle comme l'échelle de Kardashev, écartée pour cette raison). Trois stades : <em>Earth Reliant</em> (dépendance totale, ISS) → <em>Proving Ground</em> (validation cislunaire) → <em>Earth Independent</em> (autosuffisance, ISRU, boucle fermée). Sous-graduation par jalons historiques réels : S≈5 Spoutnik 1957, S≈8 Gagarine 1961, S≈15 Apollo 11 1969, S≈20 ISS permanente 2000, S≈25 Falcon 9 réutilisable 2015, S≈30 aujourd'hui (Starship, encore sub-orbital) — fin d'Earth Reliant. <code>space_threshold</code>=80 marque l'entrée en Earth Independent (colonie ISRU en boucle fermée), pas la fin du chemin.</li>
+      <li><strong>Cohérence Kn ↔ S</strong> : le levier de connaissance sur le spatial (<code>space_leverage</code>) n'est plus un multiplicateur continu arbitraire — il suit désormais les mêmes paliers que la théorie retenue pour S (Earth Reliant / Proving Ground / Earth Independent), avec un plafond à 5.0 (pas de croissance infinie). Constat testé en ajustant les curseurs : ce plafond, plus défendable que l'ancien coefficient libre, ferme la fenêtre de tir observée précédemment — S=80 devient hors de portée même aux valeurs extrêmes des curseurs (rnd_fraction et space_fraction au maximum). Un résultat inconfortable mais honnête : rendre le modèle plus rigoureux sur ce point a rendu le scénario "réussite spatiale" plus difficile à atteindre, pas plus facile.</li>
+      <li><strong>Rétroaction extraterrestre</strong> : une fois S au-delà de <code>space_threshold</code>, une fraction bornée (fonction de saturation, jamais illimitée) de ressources/capital extraterrestres alimente Rm et K — <code>offworld_max_resource</code>/<code>offworld_max_capital</code> plafonnent cet apport, <code>offworld_half_saturation</code> règle la vitesse de montée en puissance. À défauts de curseurs inchangés (S ne dépasse jamais le seuil), cette boucle reste inactive : aucun impact sur les résultats déjà obtenus. Avertissement testé : si on force S au-delà du seuil, la rétroaction peut créer un cycle dépassement-effondrement plus ample plutôt qu'une stabilisation — l'accès à l'espace ne suffit pas seul, sans gestion de la pollution/du recyclage en parallèle.</li>
+      <li><strong>Stocks (v2)</strong> : Population (P), Capital industriel (K), Capital de connaissance (Kn), Réserves fossiles restantes (Rf), Métaux critiques restants (Rm), Pollution/dégradation cumulée (Pol), Énergie renouvelable installée (Erec), Préparation multiplanétaire (S).</li>
+      <li><strong>Démographie</strong> : la natalité décline avec la richesse par tête K/P (transition démographique), entre <code>birth_rate_max</code> et <code>birth_rate_min</code>. La mortalité augmente avec la pollution et avec le dépassement de <code>carrying_capacity</code>.</li>
+      <li><strong>Connaissance (Kn)</strong> : finance le R&amp;D efficacité (réduit les intensités énergie/métaux/émissions via le facteur <code>learning</code>) ET donne un effet de levier au programme spatial — elle ne sert plus uniquement l'espace.</li>
+      <li><strong>Spatial (S)</strong> : alimenté par <code>investment_space</code> (une part dédiée de l'investissement, pas un flux abstrait) × levier de connaissance × <code>metal_scarcity</code> — donc explicitement couplé à l'industrie, l'énergie et les métaux disponibles.</li>
+      <li><strong>Métaux critiques (Rm)</strong> : consommés par l'industrie générale, le déploiement renouvelable ET le programme spatial — ce sont les trois usages qui se disputent réellement cette ressource. Leur raréfaction (<code>metal_scarcity</code>) freine à la fois le renouvelable et le spatial.</li>
+      <li><strong>Seuils</strong> : "collapse terrestre" si Pol ≥ <code>collapse_pollution</code> OU Rf ≤ <code>collapse_fossil</code> OU Rm ≤ <code>collapse_metal</code>. "Autosuffisance spatiale" si S ≥ <code>space_threshold</code>.</li>
+      <li><strong>Ce qui est ancré sur des données réelles 2025-26</strong> : P, Pol (Earth Overshoot), Erec, natalité/mortalité, <code>investment_fraction</code>, <code>rnd_fraction</code>, <code>space_fraction</code> (≈ économie spatiale / investissement mondial), <code>carrying_capacity</code> (littérature). <strong>Ce qui reste une hypothèse de modélisation</strong> (pas de donnée publique directement mobilisable) : <code>metal_intensity</code>, <code>metal_per_renewable</code>, <code>metal_per_space</code>, <code>kn_leverage_space</code>, <code>efficiency_learning_rate</code>, <code>fossil_depletion_rate</code>, <code>wealth_half</code>, <code>carrying_capacity_pressure</code> — à explorer via les curseurs plutôt qu'à prendre pour acquis.</li>
+      <li>Les <strong>équations des stocks</strong> sont des chaînes de texte évaluées dynamiquement (colonne "formule") : vous pouvez les réécrire directement, elles ont accès à tous les stocks, paramètres et flux internes par leur identifiant.</li>
+      <li>Le fichier est autonome (HTML + JS, aucune dépendance hors Chart.js en CDN) et déterministe : ouvert deux fois avec les mêmes paramètres, il produit des courbes strictement identiques.</li>
+    </ul>
+  </details>
+
+</div>
+
+<script>
+// ---------- Modèle par défaut ----------
+const defaultModel = {
+  stocks: [
+    {id:'P',    label:'Population',                         unit:'Mds hab.',          init:8.3, clampMin:0.001,        formula:'P*((birth_rate_min+(birth_rate_max-birth_rate_min)/(1+(K/P)/wealth_half)) - death_rate*(1+pollution_mortality*Pol/(Pol+50))*(1+carrying_capacity_pressure*Math.max(0,P/carrying_capacity-1)))'},
+    {id:'K',    label:'Capital industriel',                  unit:'indice',            init:100, clampMin:0,            formula:'investment_capital - capital_depreciation*K + offworld_capital_gain'},
+    {id:'Kn',   label:'Capital de connaissance',              unit:'indice',            init:20,  clampMin:0,            formula:'investment_rnd*innovation_efficiency - knowledge_decay*Kn'},
+    {id:'Rf',   label:'Réserves fossiles restantes',          unit:'% du stock initial', init:100, clampMin:0, clampMax:100, formula:'-fossil_depletion'},
+    {id:'Rm',   label:'Métaux critiques restants',            unit:'% du stock initial', init:100, clampMin:0, clampMax:100, formula:'-metal_consumption + offworld_resource_gain'},
+    {id:'Pol',  label:'Pollution / dégradation cumulée',      unit:'indice',            init:73,  clampMin:0,            formula:'emissions - pollution_absorption*Pol'},
+    {id:'Erec', label:'Énergie renouvelable installée',       unit:'indice capacité',   init:9.4, clampMin:0,            formula:'renewable_build - 0.01*Erec'},
+    {id:'S',    label:'Préparation multiplanétaire',          unit:'indice (seuil~100)',init:1,   clampMin:0, clampMax:200, formula:'space_gain - space_obsolescence*S'},
+  ],
+  params: [
+    {id:'birth_rate_max',        label:'Natalité max (régime pré-transition)',     value:0.038, min:0.02, max:0.06},
+    {id:'birth_rate_min',        label:'Natalité min (régime développé)',          value:0.010, min:0,    max:0.03},
+    {id:'wealth_half',           label:'Richesse (K/P) à mi-transition',           value:4.0,   min:0.5,  max:20},
+    {id:'death_rate',            label:'Taux de mortalité de base',                value:0.0079,min:0,    max:0.03},
+    {id:'pollution_mortality',   label:'Sensibilité mortalité ↔ pollution',        value:0.02,  min:0,    max:0.2},
+    {id:'carrying_capacity',     label:'Capacité de charge (P critique)',          value:12,    min:4,    max:30},
+    {id:'carrying_capacity_pressure', label:'Intensité pression capacité de charge', value:3,   min:0,    max:15},
+    {id:'energy_intensity',      label:'Intensité énergétique du capital',         value:1.0,   min:0.2,  max:3},
+    {id:'ore_grade_exp',         label:'Déclin qualité gisements fossiles',        value:1.5,   min:1,    max:4},
+    {id:'metal_grade_exp',       label:'Déclin qualité gisements métaux',          value:1.5,   min:1,    max:4},
+    {id:'base_fossil',           label:'Extraction fossile max (Rf=100%)',         value:40,    min:5,    max:100},
+    {id:'pollution_drag_half',   label:'Pollution → -50% de production',           value:150,   min:20,   max:400},
+    {id:'emission_intensity',    label:"Intensité d'émission / production",        value:0.3,   min:0.05, max:1},
+    {id:'metal_intensity',       label:'Intensité métaux / production',            value:0.05,  min:0.01, max:0.5},
+    {id:'fossil_depletion_rate', label:'Taux de déplétion fossile',                value:0.15,  min:0.02, max:0.5},
+    {id:'recycling_rate',        label:'Taux de recyclage / circularité',          value:0.09,  min:0,    max:0.95},
+    {id:'investment_fraction',   label:'Part de production réinvestie',            value:0.26,  min:0,    max:0.6},
+    {id:'rnd_fraction',          label:"Part investissement → R&D (efficacité)",   value:0.08,  min:0,    max:0.6},
+    {id:'space_fraction',        label:'Part investissement → programme spatial',  value:0.02,  min:0,    max:0.3},
+    {id:'capital_depreciation',  label:'Dépréciation du capital',                  value:0.05,  min:0.01, max:0.2},
+    {id:'efficiency_learning_rate', label:"Gain d'efficacité par la connaissance", value:0.5,   min:0,    max:3},
+    {id:'innovation_efficiency', label:"Efficacité de l'innovation",               value:1.0,   min:0.2,  max:3},
+    {id:'knowledge_decay',       label:'Obsolescence des connaissances',           value:0.01,  min:0,    max:0.1},
+    {id:'renewable_growth',      label:'Croissance des renouvelables',             value:0.08,  min:0,    max:0.3},
+    {id:'renewable_cap',         label:'Plafond physique renouvelables',           value:120,   min:20,   max:300},
+    {id:'metal_per_renewable',   label:'Métaux consommés / renouvelable construit',value:0.1,   min:0,    max:1},
+    {id:'metal_per_space',       label:'Métaux consommés / investissement spatial',value:0.6,   min:0,    max:3},
+    {id:'pollution_absorption',  label:"Capacité d'auto-épuration naturelle",      value:0.05,  min:0,    max:0.3},
+    {id:'space_obsolescence',    label:'Obsolescence techno spatiale',             value:0.01,  min:0,    max:0.1},
+    {id:'space_threshold',       label:'Seuil — autosuffisance spatiale',          value:80,    min:30,   max:150},
+    {id:'offworld_half_saturation', label:'Rétroaction — demi-saturation (en S au-delà du seuil)', value:20, min:2, max:100},
+    {id:'offworld_max_resource', label:'Rétroaction — apport max métaux extraterrestres', value:2, min:0, max:30},
+    {id:'offworld_max_capital',  label:'Rétroaction — apport max capital extraterrestre', value:1, min:0, max:30},
+    {id:'collapse_pollution',    label:'Seuil — collapse par pollution',           value:300,   min:100,  max:800},
+    {id:'collapse_fossil',       label:'Seuil — collapse par fossile',             value:5,     min:0,    max:30},
+    {id:'collapse_metal',        label:'Seuil — collapse par métaux',              value:5,     min:0,    max:30},
+  ]
+};
+
+let currentModel = JSON.parse(JSON.stringify(defaultModel));
+let charts = {};
+let playState = null;
+let sortState = {params:{key:null,dir:1}, stocks:{key:null,dir:1}};
+
+// ---------- Moteur ----------
+function computeFlows(s, p){
+  const learning = 1 + p.efficiency_learning_rate*(s.Kn/20 - 1);
+  const eff_energy_intensity   = p.energy_intensity / learning;
+  const eff_metal_intensity    = p.metal_intensity / learning;
+  const eff_emission_intensity = p.emission_intensity / learning;
+
+  const energy_fossil = p.base_fossil * Math.pow(Math.max(s.Rf,0)/100, p.ore_grade_exp);
+  const energy_total = energy_fossil + s.Erec;
+  const energy_demand = s.K * eff_energy_intensity;
+  const utilization = Math.min(1, energy_total / Math.max(energy_demand, 1e-6));
+  const pollution_drag = s.Pol / (s.Pol + p.pollution_drag_half);
+  const production = s.K * utilization * (1 - pollution_drag);
+
+  const fossil_used = Math.min(energy_fossil, energy_demand);
+  const emissions = production * eff_emission_intensity * (1 - p.recycling_rate);
+  const fossil_depletion = fossil_used * p.fossil_depletion_rate;
+
+  const investment = production * p.investment_fraction;
+  const investment_space = investment * p.space_fraction;
+  const investment_rnd = investment * p.rnd_fraction;
+  const investment_capital = investment - investment_space - investment_rnd;
+
+  const metal_scarcity = Math.pow(Math.max(s.Rm,0)/100, p.metal_grade_exp);
+  const renewable_build = p.renewable_growth * investment_capital * (1 - s.Erec/p.renewable_cap) * metal_scarcity;
+
+  const metal_industrial = production * eff_metal_intensity * (1 - p.recycling_rate);
+  const metal_renewable  = renewable_build * p.metal_per_renewable;
+  const metal_space      = investment_space * p.metal_per_space;
+  const metal_consumption = metal_industrial + metal_renewable + metal_space;
+
+  function spaceLeverageFromKn(Kn){
+    if (Kn < 20)  return 0.5;  // pré-moderne : R&D insuffisante pour un programme spatial soutenu
+    if (Kn < 40)  return 1.0;  // Earth Reliant (niveau ISS/aujourd'hui — Kn init=20)
+    if (Kn < 70)  return 2.2;  // Proving Ground (ISRU/cislunaire pilote)
+    if (Kn < 120) return 3.5;  // seuil d'entrée en Earth Independent
+    return 5.0;                // multiplanétaire mature (plafond)
+  }
+  const space_leverage = spaceLeverageFromKn(s.Kn);
+  const space_gain = investment_space*space_leverage*metal_scarcity;
+
+  const offworld_active = Math.max(0, s.S - p.space_threshold);
+  const offworld_saturation = offworld_active/(offworld_active+p.offworld_half_saturation);
+  const offworld_resource_gain = p.offworld_max_resource*offworld_saturation;
+  const offworld_capital_gain = p.offworld_max_capital*offworld_saturation;
+
+  return {learning, eff_energy_intensity, eff_metal_intensity, eff_emission_intensity,
+          energy_fossil, energy_total, energy_demand, utilization, pollution_drag, production,
+          fossil_used, emissions, fossil_depletion, investment, investment_space, investment_rnd, investment_capital,
+          metal_scarcity, renewable_build, metal_industrial, metal_renewable, metal_space, metal_consumption, space_leverage, space_gain,
+          offworld_active, offworld_saturation, offworld_resource_gain, offworld_capital_gain};
+}
+
+function evalFormula(expr, scope){
+  try{
+    const keys = Object.keys(scope);
+    const vals = keys.map(k=>scope[k]);
+    const fn = new Function(...keys, 'return (' + expr + ');');
+    const r = fn(...vals);
+    return Number.isFinite(r) ? r : 0;
+  }catch(e){ console.warn('Formule invalide:', expr, e.message); return 0; }
+}
+
+function stepOnce(state, params, stocksDef){
+  const flows = computeFlows(state, params);
+  const scope = Object.assign({}, state, params, flows);
+  const next = Object.assign({}, state);
+  stocksDef.forEach(st=>{
+    const d = evalFormula(st.formula, scope);
+    let v = state[st.id] + d;
+    if (st.clampMin !== undefined) v = Math.max(v, st.clampMin);
+    if (st.clampMax !== undefined) v = Math.min(v, st.clampMax);
+    next[st.id] = v;
+  });
+  return next;
+}
+
+function simulate(model, years){
+  const state0 = {}; model.stocks.forEach(s=>state0[s.id]=s.init);
+  const paramVals = {}; model.params.forEach(p=>paramVals[p.id]=p.value);
+  const series = {}; model.stocks.forEach(s=>series[s.id]=new Array(years+1).fill(null));
+  model.stocks.forEach(s=>series[s.id][0]=s.init);
+  let state = Object.assign({}, state0);
+  let crossEspace=null, crossTerre=null, terreReason=null;
+  for(let y=1;y<=years;y++){
+    state = stepOnce(state, paramVals, model.stocks);
+    model.stocks.forEach(s=>series[s.id][y]=state[s.id]);
+    if (crossEspace===null && state.S!==undefined && paramVals.space_threshold!==undefined && state.S>=paramVals.space_threshold) crossEspace=y;
+    if (crossTerre===null){
+      if (state.Pol!==undefined && paramVals.collapse_pollution!==undefined && state.Pol>=paramVals.collapse_pollution){ crossTerre=y; terreReason='pollution'; }
+      else if (state.Rf!==undefined && paramVals.collapse_fossil!==undefined && state.Rf<=paramVals.collapse_fossil){ crossTerre=y; terreReason='fossile'; }
+      else if (state.Rm!==undefined && paramVals.collapse_metal!==undefined && state.Rm<=paramVals.collapse_metal){ crossTerre=y; terreReason='métaux'; }
+    }
+  }
+  return {series, paramVals, crossEspace, crossTerre, terreReason, years};
+}
+
+// ---------- Couleurs ----------
+function stockColor(id){
+  return {P:'#8aa0b3', K:'#5b7fa6', Kn:'#4FC3D9', Rf:'#E07A4F', Rm:'#C97B3D', Pol:'#E2574C', Erec:'#5FD68A', S:'#37D6FF'}[id] || '#9aa7b4';
+}
+function thresholdFor(id, p){
+  if (id==='Pol') return p.collapse_pollution;
+  if (id==='Rf')  return p.collapse_fossil;
+  if (id==='Rm')  return p.collapse_metal;
+  if (id==='S')   return p.space_threshold;
+  return null;
+}
+
+// ---------- Tables éditables ----------
+const paramsBody = document.querySelector('#paramsTable tbody');
+const stocksBody = document.querySelector('#stocksTable tbody');
+
+function renderParamsTable(){
+  paramsBody.innerHTML='';
+  currentModel.params.forEach(p=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" data-field="id" value="${p.id}" style="width:90px"></td>
+      <td><input type="text" data-field="label" value="${p.label}"></td>
+      <td style="min-width:150px">
+        <input type="range" data-field="value" min="${p.min}" max="${p.max}" step="${(p.max-p.min)/200 || 0.001}" value="${p.value}">
+        <input type="number" data-field="valueNum" value="${p.value}" step="any" style="width:64px">
+      </td>
+      <td><input type="number" data-field="min" value="${p.min}" style="width:55px"></td>
+      <td><input type="number" data-field="max" value="${p.max}" style="width:55px"></td>
+      <td><button class="row-del" title="supprimer">×</button></td>`;
+    tr.dataset.id = p.id;
+    paramsBody.appendChild(tr);
+
+    const range = tr.querySelector('[data-field=value]');
+    const num = tr.querySelector('[data-field=valueNum]');
+    range.addEventListener('input', ()=>{ p.value = +range.value; num.value = range.value; });
+    num.addEventListener('input', ()=>{ p.value = +num.value || 0; range.value = p.value; });
+    tr.querySelector('[data-field=id]').addEventListener('change', e=>{ p.id = e.target.value.trim(); tr.dataset.id=p.id; });
+    tr.querySelector('[data-field=label]').addEventListener('change', e=>{ p.label = e.target.value; });
+    tr.querySelector('[data-field=min]').addEventListener('change', e=>{ p.min = +e.target.value; range.min=p.min; });
+    tr.querySelector('[data-field=max]').addEventListener('change', e=>{ p.max = +e.target.value; range.max=p.max; });
+    tr.querySelector('.row-del').addEventListener('click', ()=>{
+      currentModel.params = currentModel.params.filter(x=>x!==p); renderParamsTable();
+    });
+  });
+  if (typeof populateSensParams === 'function') populateSensParams();
+}
+
+function renderStocksTable(){
+  stocksBody.innerHTML='';
+  currentModel.stocks.forEach(s=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" data-field="id" value="${s.id}" style="width:55px"></td>
+      <td><input type="text" data-field="label" value="${s.label}"></td>
+      <td><input type="number" data-field="init" value="${s.init}" step="any" style="width:60px"></td>
+      <td class="formula-col"><input type="text" data-field="formula" value="${s.formula}"></td>
+      <td><button class="row-del" title="supprimer">×</button></td>`;
+    tr.dataset.id = s.id;
+    stocksBody.appendChild(tr);
+    tr.querySelector('[data-field=id]').addEventListener('change', e=>{ s.id=e.target.value.trim(); tr.dataset.id=s.id; });
+    tr.querySelector('[data-field=label]').addEventListener('change', e=>{ s.label=e.target.value; });
+    tr.querySelector('[data-field=init]').addEventListener('change', e=>{ s.init=+e.target.value||0; });
+    tr.querySelector('[data-field=formula]').addEventListener('change', e=>{ s.formula=e.target.value; });
+    tr.querySelector('.row-del').addEventListener('click', ()=>{
+      currentModel.stocks = currentModel.stocks.filter(x=>x!==s); renderStocksTable();
+    });
+  });
+}
+
+document.querySelectorAll('#paramsTable th[data-sort]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.sort;
+    sortState.params.dir = (sortState.params.key===key) ? -sortState.params.dir : 1;
+    sortState.params.key = key;
+    currentModel.params.sort((a,b)=> (a[key]>b[key]?1:a[key]<b[key]?-1:0)*sortState.params.dir);
+    renderParamsTable();
+  });
+});
+document.querySelectorAll('#stocksTable th[data-sort]').forEach(th=>{
+  th.addEventListener('click', ()=>{
+    const key = th.dataset.sort;
+    sortState.stocks.dir = (sortState.stocks.key===key) ? -sortState.stocks.dir : 1;
+    sortState.stocks.key = key;
+    currentModel.stocks.sort((a,b)=> (a[key]>b[key]?1:a[key]<b[key]?-1:0)*sortState.stocks.dir);
+    renderStocksTable();
+  });
+});
+
+document.getElementById('addParamBtn').addEventListener('click', ()=>{
+  let n=1; while(currentModel.params.some(p=>p.id==='param'+n)) n++;
+  currentModel.params.push({id:'param'+n, label:'Nouveau paramètre', value:1, min:0, max:10});
+  renderParamsTable();
+});
+document.getElementById('addStockBtn').addEventListener('click', ()=>{
+  let n=1; while(currentModel.stocks.some(s=>s.id==='stock'+n)) n++;
+  currentModel.stocks.push({id:'stock'+n, label:'Nouveau stock', unit:'', init:1, clampMin:0, formula:'0'});
+  renderStocksTable();
+});
+document.getElementById('resetBtn').addEventListener('click', ()=>{
+  currentModel = JSON.parse(JSON.stringify(defaultModel));
+  renderParamsTable(); renderStocksTable();
+  buildCharts(currentModel, +durationRange.value);
+  setRaceBars(0,0); raceYearWrap.firstChild.textContent='0';
+  raceVerdict.textContent='Modèle réinitialisé. Relancez la simulation.';
+});
+
+// ---------- Dashboard / Chart.js ----------
+const dashboard = document.getElementById('dashboard');
+function buildCharts(model, years){
+  dashboard.innerHTML=''; charts={};
+  const labels = Array.from({length:years+1},(_,i)=>i);
+  const pVals = {}; model.params.forEach(p=>pVals[p.id]=p.value);
+  model.stocks.forEach(st=>{
+    const card = document.createElement('div'); card.className='chart-card';
+    card.innerHTML = `<div class="chart-card__head">
+        <span class="chart-card__id" style="color:${stockColor(st.id)}">${st.id}</span>
+        <span class="chart-card__label">${st.label}</span>
+        <span class="chart-card__unit">${st.unit||''}</span>
+      </div><div class="chart-card__canvas-wrap"><canvas></canvas></div>`;
+    dashboard.appendChild(card);
+    const ctx = card.querySelector('canvas').getContext('2d');
+    const data = new Array(years+1).fill(null); data[0]=st.init;
+    const datasets = [{data, borderColor:stockColor(st.id), borderWidth:2, pointRadius:0, tension:0.2}];
+    const thr = thresholdFor(st.id, pVals);
+    if (thr!==null && Number.isFinite(thr)){
+      datasets.push({data:new Array(years+1).fill(thr), borderColor:'rgba(226,87,76,0.55)', borderDash:[6,4], borderWidth:1, pointRadius:0});
+    }
+    charts[st.id] = new Chart(ctx, {type:'line', data:{labels, datasets}, options:{
+      responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{legend:{display:false}},
+      scales:{
+        x:{grid:{color:'#1c232b'}, ticks:{color:'#7c8896', maxTicksLimit:6}},
+        y:{grid:{color:'#1c232b'}, ticks:{color:'#7c8896'}}
+      }
+    }});
+  });
+}
+
+// ---------- Course / lecture animée ----------
+const raceTerreFill=document.getElementById('raceTerreFill'), raceEspaceFill=document.getElementById('raceEspaceFill');
+const raceTerreVal=document.getElementById('raceTerreVal'), raceEspaceVal=document.getElementById('raceEspaceVal');
+const raceYearWrap=document.getElementById('raceYearWrap'), raceVerdict=document.getElementById('raceVerdict');
+const durationRange=document.getElementById('durationRange'), durationVal=document.getElementById('durationVal');
+const speedRange=document.getElementById('speedRange');
+
+durationRange.addEventListener('input', ()=> durationVal.textContent = durationRange.value+' ans');
+
+function setRaceBars(terrePct, espacePct){
+  raceTerreFill.style.width = Math.min(100,Math.max(0,terrePct)).toFixed(1)+'%';
+  raceEspaceFill.style.width = Math.min(100,Math.max(0,espacePct)).toFixed(1)+'%';
+  raceTerreVal.textContent = Math.min(100,Math.max(0,terrePct)).toFixed(0)+'%';
+  raceEspaceVal.textContent = Math.min(100,Math.max(0,espacePct)).toFixed(0)+'%';
+}
+
+function renderFrame(frame){
+  const {series, paramVals} = playState;
+  currentModel.stocks.forEach(st=>{
+    const ch = charts[st.id]; if(!ch) return;
+    ch.data.datasets[0].data[frame] = series[st.id][frame];
+    ch.update('none');
+  });
+  raceYearWrap.firstChild.textContent = frame;
+  const Rf = series.Rf ? series.Rf[frame] : null, Rm = series.Rm ? series.Rm[frame] : null, Pol = series.Pol ? series.Pol[frame] : null, S = series.S ? series.S[frame] : null;
+  const polPct = (Pol!==null) ? Pol/Math.max(paramVals.collapse_pollution,1e-6) : 0;
+  const fossilPct = (Rf!==null) ? (100-Rf)/Math.max(100-paramVals.collapse_fossil,1e-6) : 0;
+  const metalPct = (Rm!==null) ? (100-Rm)/Math.max(100-paramVals.collapse_metal,1e-6) : 0;
+  const terrePct = Math.max(polPct, fossilPct, metalPct)*100;
+  const espacePct = (S!==null) ? (S/Math.max(paramVals.space_threshold,1e-6))*100 : 0;
+  setRaceBars(terrePct, espacePct);
+}
+
+function showVerdict(){
+  const {crossTerre, crossEspace, years, terreReason} = playState;
+  let msg;
+  if (crossTerre && (!crossEspace || crossTerre < crossEspace)){
+    msg = `🌍 Seuil critique terrestre franchi en année ${crossTerre} (cause : ${terreReason})` + (crossEspace ? `, avant l'autosuffisance spatiale (année ${crossEspace}).` : `. Aucune autosuffisance spatiale atteinte sur ${years} ans.`);
+  } else if (crossEspace && (!crossTerre || crossEspace<=crossTerre)){
+    msg = `🚀 Seuil de préparation spatiale franchi en année ${crossEspace}` + (crossTerre ? `, avant le basculement critique terrestre (année ${crossTerre}, cause : ${terreReason}).` : `, sans basculement critique terrestre détecté sur ${years} ans.`);
+  } else {
+    msg = `Aucun des deux seuils n'est franchi sur ${years} ans avec ces paramètres.`;
+  }
+  raceVerdict.textContent = msg;
+}
+
+function stopPlayback(){ if(playState && playState.timer) clearTimeout(playState.timer); }
+
+function tick(){
+  const delay = Math.max(2, 70 - (+speedRange.value)*6);
+  playState.timer = setTimeout(()=>{
+    if (playState.frame >= playState.years){ showVerdict(); return; }
+    playState.frame++;
+    renderFrame(playState.frame);
+    tick();
+  }, delay);
+}
+
+function startPlayback(){
+  stopPlayback();
+  const years = +durationRange.value;
+  const result = simulate(currentModel, years);
+  playState = {frame:0, years, series:result.series, paramVals:result.paramVals,
+               crossEspace:result.crossEspace, crossTerre:result.crossTerre, terreReason:result.terreReason, timer:null};
+  buildCharts(currentModel, years);
+  renderFrame(0);
+  raceVerdict.textContent = 'Simulation en cours…';
+  tick();
+}
+
+function skipToEnd(){
+  if (!playState) { startPlayback(); }
+  stopPlayback();
+  for (let f=playState.frame+1; f<=playState.years; f++) playState.frame = f;
+  for (let f=0; f<=playState.years; f++) renderFrame(f);
+  showVerdict();
+}
+
+function exportCSV(){
+  if (!playState){ alert('Lancez d\'abord une simulation.'); return; }
+  const ids = currentModel.stocks.map(s=>s.id);
+  let csv = 'annee,'+ids.join(',')+'\n';
+  for (let y=0;y<=playState.years;y++){
+    csv += y+','+ids.map(id=> (playState.series[id][y]!==null && playState.series[id]!==undefined) ? playState.series[id][y].toFixed(4) : '').join(',') + '\n';
+  }
+  const blob = new Blob([csv], {type:'text/csv'});
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'simulation_terre_multiplanetaire.csv';
+  a.click();
+}
+
+document.getElementById('runBtn').addEventListener('click', startPlayback);
+document.getElementById('skipBtn').addEventListener('click', skipToEnd);
+document.getElementById('csvBtn').addEventListener('click', exportCSV);
+
+// ---------- Analyse de sensibilité (un facteur à la fois) ----------
+let sensChart = null;
+const sensParamSelect = document.getElementById('sensParam');
+const sensStepsRange = document.getElementById('sensSteps');
+const sensStepsVal = document.getElementById('sensStepsVal');
+const sensNote = document.getElementById('sensNote');
+
+function populateSensParams(){
+  const prev = sensParamSelect.value;
+  const opts = currentModel.params.map(p=>`<option value="${p.id}">${p.id} — ${p.label}</option>`).join('');
+  sensParamSelect.innerHTML = opts;
+  if (currentModel.params.some(p=>p.id===prev)) sensParamSelect.value = prev;
+  if (mapParamX && mapParamY){
+    const px = mapParamX.value, py = mapParamY.value;
+    mapParamX.innerHTML = opts; mapParamY.innerHTML = opts;
+    mapParamX.value = currentModel.params.some(p=>p.id===px) ? px : 'rnd_fraction';
+    mapParamY.value = currentModel.params.some(p=>p.id===py) ? py : 'efficiency_learning_rate';
+  }
+}
+sensStepsRange.addEventListener('input', ()=> sensStepsVal.textContent = sensStepsRange.value);
+
+function runSensitivitySweep(){
+  const paramId = sensParamSelect.value;
+  const paramDef = currentModel.params.find(p=>p.id===paramId);
+  if (!paramDef) return;
+  const steps = +sensStepsRange.value;
+  const years = +durationRange.value;
+  const xs=[], terreYs=[], espaceYs=[];
+  for (let i=0;i<steps;i++){
+    const v = paramDef.min + (paramDef.max-paramDef.min)*i/Math.max(steps-1,1);
+    const sweptParams = currentModel.params.map(p=> p.id===paramId ? Object.assign({},p,{value:v}) : p);
+    const res = simulate({stocks:currentModel.stocks, params:sweptParams}, years);
+    xs.push(v); terreYs.push(res.crossTerre); espaceYs.push(res.crossEspace);
+  }
+  renderSensChart(paramId, paramDef, xs, terreYs, espaceYs, years);
+}
+
+function renderSensChart(paramId, paramDef, xs, terreYs, espaceYs, years){
+  const ctx = document.getElementById('sensCanvas').getContext('2d');
+  if (sensChart) sensChart.destroy();
+  sensChart = new Chart(ctx, {
+    type:'line',
+    data:{ labels: xs.map(v=>v.toFixed(4)),
+      datasets:[
+        {label:'Basculement terrestre (an)', data:terreYs, borderColor:'#E07A4F', backgroundColor:'#E07A4F', borderWidth:2, pointRadius:3, tension:0.15},
+        {label:'Seuil spatial atteint (an)', data:espaceYs, borderColor:'#37D6FF', backgroundColor:'#37D6FF', borderWidth:2, pointRadius:3, tension:0.15},
+      ]},
+    options:{ responsive:true, maintainAspectRatio:false, animation:false,
+      plugins:{ legend:{display:true, position:'top', labels:{color:'#cdd6df', boxWidth:12, font:{size:11, family:'IBM Plex Mono'}}} },
+      scales:{
+        x:{ title:{display:true, text:paramId, color:'#7c8896', font:{family:'IBM Plex Mono', size:11}}, grid:{color:'#1c232b'}, ticks:{color:'#7c8896', maxTicksLimit:8} },
+        y:{ title:{display:true, text:'année', color:'#7c8896', font:{family:'IBM Plex Mono', size:11}}, grid:{color:'#1c232b'}, ticks:{color:'#7c8896'} }
+      }
+    }
+  });
+  const nbTerre = terreYs.filter(v=>v!==null).length, nbEspace = espaceYs.filter(v=>v!==null).length;
+  sensNote.textContent = `${paramId} balayé sur [${paramDef.min}, ${paramDef.max}] (${xs.length} points, ${years} ans simulés chacun, autres paramètres fixés à leur valeur actuelle). Seuil terrestre franchi dans ${nbTerre}/${xs.length} cas, seuil spatial franchi dans ${nbEspace}/${xs.length} cas. Point manquant = seuil non franchi sur la durée simulée.`;
+}
+
+document.getElementById('sensRunBtn').addEventListener('click', runSensitivitySweep);
+
+// ---------- Carte 2D (deux paramètres à la fois) ----------
+const mapParamX = document.getElementById('mapParamX');
+const mapParamY = document.getElementById('mapParamY');
+const mapResRange = document.getElementById('mapRes');
+const mapResVal = document.getElementById('mapResVal');
+const mapCanvas = document.getElementById('mapCanvas');
+const mapNote = document.getElementById('mapNote');
+let mapGridCache = null;
+
+mapResRange.addEventListener('input', ()=> mapResVal.textContent = mapResRange.value+'×'+mapResRange.value);
+
+function runMap2D(){
+  const idX = mapParamX.value, idY = mapParamY.value;
+  const defX = currentModel.params.find(p=>p.id===idX);
+  const defY = currentModel.params.find(p=>p.id===idY);
+  if (!defX || !defY || idX===idY){ mapNote.textContent = 'Choisissez deux paramètres différents.'; return; }
+  const n = +mapResRange.value;
+  const years = +durationRange.value;
+  const grid = [];
+  for (let iy=0; iy<n; iy++){
+    const row = [];
+    const vy = defY.min + (defY.max-defY.min)*iy/Math.max(n-1,1);
+    for (let ix=0; ix<n; ix++){
+      const vx = defX.min + (defX.max-defX.min)*ix/Math.max(n-1,1);
+      const swept = currentModel.params.map(p=>{
+        if (p.id===idX) return Object.assign({},p,{value:vx});
+        if (p.id===idY) return Object.assign({},p,{value:vy});
+        return p;
+      });
+      const res = simulate({stocks:currentModel.stocks, params:swept}, years);
+      row.push({vx, vy, crossEspace:res.crossEspace, crossTerre:res.crossTerre, terreReason:res.terreReason});
+    }
+    grid.push(row);
+  }
+  mapGridCache = {grid, idX, idY, defX, defY, n, years};
+  drawMap2D();
+}
+
+function cellColor(cell, years){
+  const {crossEspace:ce, crossTerre:ct} = cell;
+  if (ce && (!ct || ce<ct)){
+    const marge = ct ? Math.min(ct-ce, years) : years;
+    const t = Math.max(0.15, Math.min(1, marge/years));
+    const g = Math.round(90+140*t);
+    return `rgb(20,${g},90)`;
+  }
+  if (ct){
+    const t = Math.max(0.15, Math.min(1, 1 - ct/years));
+    const r = Math.round(140+100*t);
+    return `rgb(${r},${Math.round(90-30*t)},50)`;
+  }
+  return '#232B33';
+}
+
+function drawMap2D(){
+  if (!mapGridCache) return;
+  const {grid, idX, idY, defX, defY, n, years} = mapGridCache;
+  const dpr = window.devicePixelRatio || 1;
+  const w = mapCanvas.parentElement.clientWidth, h = 300;
+  mapCanvas.width = w*dpr; mapCanvas.height = h*dpr;
+  mapCanvas.style.width = w+'px'; mapCanvas.style.height = h+'px';
+  const ctx = mapCanvas.getContext('2d');
+  ctx.setTransform(dpr,0,0,dpr,0,0);
+  ctx.clearRect(0,0,w,h);
+  const padL=70, padB=36, padT=10, padR=10;
+  const gw = (w-padL-padR)/n, gh = (h-padT-padB)/n;
+  grid.forEach((row,iy)=>{
+    row.forEach((cell,ix)=>{
+      ctx.fillStyle = cellColor(cell, years);
+      const py = padT + (n-1-iy)*gh;
+      ctx.fillRect(padL+ix*gw, py, gw-1, gh-1);
+    });
+  });
+  ctx.fillStyle = '#7c8896'; ctx.font = '11px IBM Plex Mono';
+  ctx.textAlign='center'; ctx.fillText(idX, padL+(w-padL-padR)/2, h-6);
+  ctx.save(); ctx.translate(14, padT+(h-padT-padB)/2); ctx.rotate(-Math.PI/2); ctx.fillText(idY,0,0); ctx.restore();
+  ctx.textAlign='right';
+  ctx.fillText(defX.min.toFixed(3), padL+gw*0.4, h-padB+14);
+  ctx.fillText(defX.max.toFixed(3), w-padR, h-padB+14);
+  ctx.fillText(defY.min.toFixed(3), padL-6, padT+(n-0.5)*gh);
+  ctx.fillText(defY.max.toFixed(3), padL-6, padT+0.5*gh);
+
+  mapCanvas.onmousemove = (ev)=>{
+    const rect = mapCanvas.getBoundingClientRect();
+    const mx = ev.clientX-rect.left, my = ev.clientY-rect.top;
+    const ix = Math.floor((mx-padL)/gw), iyRaw = Math.floor((my-padT)/gh);
+    const iy = n-1-iyRaw;
+    if (ix<0||ix>=n||iy<0||iy>=n) return;
+    const cell = grid[iy][ix];
+    const ce = cell.crossEspace ? 'an '+cell.crossEspace : 'non atteint';
+    const ct = cell.crossTerre ? `an ${cell.crossTerre} (${cell.terreReason})` : 'non atteint';
+    mapNote.textContent = `${idX}=${cell.vx.toFixed(4)}, ${idY}=${cell.vy.toFixed(4)} → seuil spatial: ${ce} | basculement terrestre: ${ct}.`;
+  };
+}
+
+document.getElementById('mapRunBtn').addEventListener('click', runMap2D);
+window.addEventListener('resize', ()=>{ if(mapGridCache) drawMap2D(); });
+
+// ---------- Init ----------
+renderParamsTable();
+renderStocksTable();
+buildCharts(currentModel, +durationRange.value);
+populateSensParams();
+</script>
+</body>
+</html>
