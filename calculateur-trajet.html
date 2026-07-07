@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Calculateur de trajet — Coût & durée</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=IBM+Plex+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#0A0D12;
+    --panel:#12161D;
+    --panel-2:#161B23;
+    --border:#232A35;
+    --text:#E8EAED;
+    --text-dim:#8B94A3;
+    --amber:#FF8A34;
+    --amber-dim:#3A2A1A;
+    --cyan:#4FD8C4;
+    --red:#E8646A;
+    --green:#6FCF7A;
+  }
+  *{box-sizing:border-box;}
+  body{
+    margin:0;
+    background:
+      radial-gradient(1200px 600px at 15% -10%, #141a24 0%, transparent 60%),
+      var(--bg);
+    color:var(--text);
+    font-family:'IBM Plex Sans', sans-serif;
+    min-height:100vh;
+    padding:32px 20px 60px;
+  }
+  .wrap{max-width:1040px;margin:0 auto;}
+  header{margin-bottom:28px;}
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    letter-spacing:.18em;
+    color:var(--amber);
+    text-transform:uppercase;
+    margin-bottom:8px;
+  }
+  h1{
+    font-size:26px;
+    margin:0 0 6px;
+    font-weight:600;
+    letter-spacing:-0.01em;
+  }
+  .sub{color:var(--text-dim);font-size:14px;max-width:560px;line-height:1.5;}
+
+  .grid{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:20px;
+    align-items:start;
+  }
+  @media (max-width:860px){ .grid{grid-template-columns:1fr;} }
+
+  .panel{
+    background:var(--panel);
+    border:1px solid var(--border);
+    border-radius:12px;
+    padding:22px;
+  }
+  .panel h2{
+    font-size:12px;
+    text-transform:uppercase;
+    letter-spacing:.12em;
+    color:var(--text-dim);
+    margin:0 0 16px;
+    font-weight:600;
+  }
+
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+  .field{margin-bottom:14px;}
+  .field label{
+    display:block;
+    font-size:12px;
+    color:var(--text-dim);
+    margin-bottom:6px;
+  }
+  .field input, .field select{
+    width:100%;
+    background:var(--panel-2);
+    border:1px solid var(--border);
+    color:var(--text);
+    padding:9px 10px;
+    border-radius:7px;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13.5px;
+    outline:none;
+    transition:border-color .15s;
+  }
+  .field input:focus, .field select:focus{border-color:var(--amber);}
+  .field small{display:block;color:#5b6472;font-size:11px;margin-top:5px;font-family:'IBM Plex Sans',sans-serif;}
+
+  .toggle-row{
+    display:flex;align-items:center;gap:8px;
+    font-size:12.5px;color:var(--text-dim);
+    margin:6px 0 16px;cursor:pointer;
+    user-select:none;
+  }
+  .toggle-row input{accent-color:var(--amber);}
+
+  .manual-block{
+    display:none;
+    border-top:1px dashed var(--border);
+    padding-top:14px;
+    margin-top:4px;
+  }
+  .manual-block.show{display:block;}
+
+  button.calc{
+    width:100%;
+    background:var(--amber);
+    color:#1a1005;
+    border:none;
+    padding:13px;
+    border-radius:8px;
+    font-weight:600;
+    font-size:14px;
+    cursor:pointer;
+    letter-spacing:.01em;
+    transition:filter .15s, transform .05s;
+    font-family:'IBM Plex Sans',sans-serif;
+  }
+  button.calc:hover{filter:brightness(1.08);}
+  button.calc:active{transform:scale(.99);}
+  button.calc:disabled{opacity:.5;cursor:wait;}
+
+  .status{
+    font-family:'IBM Plex Mono',monospace;
+    font-size:12px;
+    color:var(--text-dim);
+    margin-top:10px;
+    min-height:16px;
+  }
+  .status.err{color:var(--red);}
+  .status.ok{color:var(--green);}
+
+  /* --- TICKET --- */
+  .ticket-outer{position:sticky;top:24px;}
+  .ticket{
+    background:#F4F1E9;
+    color:#1a1a18;
+    border-radius:4px;
+    position:relative;
+    font-family:'IBM Plex Mono', monospace;
+    box-shadow:0 20px 40px -12px rgba(0,0,0,.55);
+    overflow:hidden;
+  }
+  .ticket::before, .ticket::after{
+    content:"";
+    position:absolute;
+    left:0;right:0;
+    height:14px;
+    background:
+      radial-gradient(circle 7px at 0 7px, transparent 7px, #F4F1E9 7.5px),
+      radial-gradient(circle 7px at 100% 7px, transparent 7px, #F4F1E9 7.5px);
+    background-size:20px 14px;
+    background-repeat:repeat-x;
+  }
+  .ticket-hole-row{
+    display:flex;justify-content:space-between;
+    padding:0 4px;
+    background-image: radial-gradient(circle 4px, var(--bg) 4px, transparent 4.5px);
+    background-repeat: repeat-x;
+    background-size: 18px 100%;
+    height:16px;
+    margin:0 -1px;
+  }
+  .ticket-body{padding:22px 24px 18px;}
+  .ticket-head{
+    display:flex;justify-content:space-between;align-items:flex-start;
+    border-bottom:1.5px dashed #c9c3af;
+    padding-bottom:14px;margin-bottom:14px;
+  }
+  .ticket-head .label{font-size:10px;letter-spacing:.14em;color:#8a8570;text-transform:uppercase;}
+  .ticket-head .route{font-size:17px;font-weight:600;margin-top:4px;color:#1a1a18;}
+  .ticket-head .route .arrow{color:#c0561f;padding:0 6px;}
+  .ticket-head .datetime{text-align:right;font-size:11.5px;color:#5f5b4c;}
+
+  .ticket-rows{margin-bottom:14px;}
+  .trow{
+    display:flex;justify-content:space-between;
+    padding:6px 0;
+    font-size:13px;
+    border-bottom:1px dotted #d8d3c0;
+  }
+  .trow .k{color:#6b6656;}
+  .trow .v{font-weight:600;color:#1a1a18;}
+  .trow .v.amber{color:#c0561f;}
+  .trow .v.cyan{color:#127a6c;}
+
+  .ticket-total{
+    display:flex;justify-content:space-between;align-items:baseline;
+    background:#1a1a18;color:#F4F1E9;
+    margin:14px -24px -18px;
+    padding:16px 24px 22px;
+  }
+  .ticket-total .k{font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:#a9a493;}
+  .ticket-total .v{font-size:26px;font-weight:700;color:var(--amber);}
+  .ticket-total .v small{font-size:13px;font-weight:500;color:#a9a493;margin-left:6px;}
+
+  .barcode{
+    height:30px;margin:14px 0 4px;
+    background:repeating-linear-gradient(90deg,#1a1a18 0 2px, transparent 2px 4px, #1a1a18 4px 5px, transparent 5px 9px, #1a1a18 9px 12px, transparent 12px 14px);
+    opacity:.85;
+  }
+  .ticket-foot{
+    display:flex;justify-content:space-between;
+    font-size:10px;color:#8a8570;letter-spacing:.05em;
+    padding-top:2px;
+  }
+
+  .placeholder{
+    padding:60px 24px;text-align:center;color:var(--text-dim);
+    font-size:13px;line-height:1.6;
+  }
+  .placeholder .big{font-size:28px;margin-bottom:10px;}
+
+  .traffic-badge{
+    display:inline-block;padding:2px 8px;border-radius:20px;
+    font-size:10.5px;letter-spacing:.05em;text-transform:uppercase;font-weight:600;
+  }
+  .traffic-badge.fluide{background:#e1f5e3;color:#1e7a2b;}
+  .traffic-badge.modere{background:#fdeecb;color:#a35c00;}
+  .traffic-badge.dense{background:#fbdede;color:#a3272c;}
+
+  footer{
+    text-align:center;color:#4a5261;font-size:11.5px;margin-top:32px;
+    font-family:'IBM Plex Mono',monospace;
+  }
+  footer a{color:var(--cyan);}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="eyebrow">Trip Computer</div>
+    <h1>Calculateur de trajet</h1>
+    <div class="sub">Distance et durée via OpenStreetMap (Nominatim + OSRM), coût essence et péage paramétrables, trafic ajustable selon l'heure et la date. Tout tourne dans le navigateur, aucune donnée envoyée ailleurs.</div>
+  </header>
+
+  <div class="grid">
+    <!-- FORM -->
+    <div class="panel">
+      <h2>Itinéraire</h2>
+      <div class="row">
+        <div class="field">
+          <label for="depart">Ville de départ</label>
+          <input id="depart" type="text" placeholder="Nantes" value="Nantes">
+        </div>
+        <div class="field">
+          <label for="arrivee">Ville d'arrivée</label>
+          <input id="arrivee" type="text" placeholder="Bordeaux" value="Bordeaux">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="date">Date</label>
+          <input id="date" type="date">
+        </div>
+        <div class="field">
+          <label for="heure">Heure de départ</label>
+          <input id="heure" type="time" value="08:00">
+        </div>
+      </div>
+
+      <label class="toggle-row">
+        <input type="checkbox" id="manualToggle">
+        Saisir distance/durée à la main (sans appel réseau)
+      </label>
+      <div class="manual-block" id="manualBlock">
+        <div class="row">
+          <div class="field">
+            <label for="manDist">Distance (km)</label>
+            <input id="manDist" type="number" min="0" step="1" placeholder="450">
+          </div>
+          <div class="field">
+            <label for="manDur">Durée hors trafic (min)</label>
+            <input id="manDur" type="number" min="0" step="1" placeholder="270">
+          </div>
+        </div>
+      </div>
+
+      <h2 style="margin-top:22px;">Paramètres véhicule & coûts</h2>
+      <div class="field">
+        <label for="energie">Motorisation</label>
+        <select id="energie">
+          <option value="essence">Essence</option>
+          <option value="diesel">Diesel</option>
+          <option value="electrique">Électrique</option>
+          <option value="hybride">Hybride</option>
+        </select>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="conso" id="consoLabel">Consommation (L/100km)</label>
+          <input id="conso" type="number" min="0" step="0.1" value="6.5">
+        </div>
+        <div class="field">
+          <label for="prixL" id="prixLabel">Prix carburant (€/L)</label>
+          <input id="prixL" type="number" min="0" step="0.01" value="1.85">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="peage">Péage moyen (€/km autoroute)</label>
+          <input id="peage" type="number" min="0" step="0.005" value="0.075">
+          <small>Repère : ~0.06–0.10 €/km selon le réseau (source ASFA) — à ajuster</small>
+        </div>
+        <div class="field">
+          <label for="partAuto">Part du trajet en autoroute (%)</label>
+          <input id="partAuto" type="number" min="0" max="100" step="1" value="80">
+        </div>
+      </div>
+      <div class="row">
+        <div class="field">
+          <label for="trafic">Trafic</label>
+          <select id="trafic">
+            <option value="auto">Automatique (selon heure/date)</option>
+            <option value="fluide">Fluide (+0%)</option>
+            <option value="modere">Modéré (+20%)</option>
+            <option value="dense">Dense (+50%)</option>
+          </select>
+        </div>
+        <div class="field">
+          <label for="passagers">Passagers (partage coût)</label>
+          <input id="passagers" type="number" min="1" step="1" value="1">
+        </div>
+      </div>
+
+      <label class="toggle-row">
+        <input type="checkbox" id="allerRetour">
+        Aller-retour (double la distance et les coûts)
+      </label>
+
+      <label class="toggle-row">
+        <input type="checkbox" id="baremeToggle">
+        Comparer au barème kilométrique (indemnité employeur)
+      </label>
+      <div class="manual-block" id="baremeBlock">
+        <div class="field">
+          <label for="baremeTaux">Taux barème (€/km)</label>
+          <input id="baremeTaux" type="number" min="0" step="0.001" value="0.548">
+          <small>⚠ non vérifié ici — barème fiscal officiel à confirmer sur impots.gouv.fr selon puissance fiscale et tranche kilométrique</small>
+        </div>
+      </div>
+
+      <button class="calc" id="calcBtn">Calculer le trajet</button>
+      <div class="status" id="status"></div>
+    </div>
+
+    <!-- RESULT TICKET -->
+    <div class="ticket-outer">
+      <div id="ticketZone">
+        <div class="panel placeholder">
+          <div class="big">🎫</div>
+          Renseigne un départ et une arrivée,<br>puis lance le calcul pour éditer le ticket.
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <footer>Sources : geocodage OpenStreetMap Nominatim · itinéraire OSRM (demo server, réseau routier OSM) · péage &amp; conso = estimations paramétrables, pas un tarif officiel.</footer>
+</div>
+
+<script>
+const $ = id => document.getElementById(id);
+const manualToggle = $('manualToggle');
+const manualBlock = $('manualBlock');
+const statusEl = $('status');
+const calcBtn = $('calcBtn');
+const ticketZone = $('ticketZone');
+
+// default date = today
+$('date').value = new Date().toISOString().slice(0,10);
+
+manualToggle.addEventListener('change', () => {
+  manualBlock.classList.toggle('show', manualToggle.checked);
+});
+
+const baremeToggle = $('baremeToggle');
+const baremeBlock = $('baremeBlock');
+baremeToggle.addEventListener('change', () => {
+  baremeBlock.classList.toggle('show', baremeToggle.checked);
+});
+
+const ENERGY_PRESETS = {
+  essence:   { consoLabel: 'Consommation (L/100km)', prixLabel: 'Prix carburant (€/L)',   conso: 6.5, prix: 1.85, unit: 'L' },
+  diesel:    { consoLabel: 'Consommation (L/100km)', prixLabel: 'Prix carburant (€/L)',   conso: 5.5, prix: 1.75, unit: 'L' },
+  electrique:{ consoLabel: 'Consommation (kWh/100km)', prixLabel: 'Prix électricité (€/kWh)', conso: 16,  prix: 0.25, unit: 'kWh' },
+  hybride:   { consoLabel: 'Consommation (L/100km)', prixLabel: 'Prix carburant (€/L)',   conso: 4.5, prix: 1.85, unit: 'L' }
+};
+$('energie').addEventListener('change', (e) => {
+  const p = ENERGY_PRESETS[e.target.value];
+  $('consoLabel').textContent = p.consoLabel;
+  $('prixLabel').textContent = p.prixLabel;
+  $('conso').value = p.conso;
+  $('prixL').value = p.prix;
+});
+
+function setStatus(msg, type){
+  statusEl.textContent = msg || '';
+  statusEl.className = 'status' + (type ? ' ' + type : '');
+}
+
+async function geocode(city){
+  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&countrycodes=fr&q=${encodeURIComponent(city)}`;
+  const res = await fetch(url, { headers: { 'Accept': 'application/json' } });
+  if(!res.ok) throw new Error('geocodage impossible pour "' + city + '"');
+  const data = await res.json();
+  if(!data.length) throw new Error('ville introuvable : "' + city + '"');
+  return { lat: parseFloat(data[0].lat), lon: parseFloat(data[0].lon), display: data[0].display_name.split(',')[0] };
+}
+
+async function route(a, b){
+  const url = `https://router.project-osrm.org/route/v1/driving/${a.lon},${a.lat};${b.lon},${b.lat}?overview=false`;
+  const res = await fetch(url);
+  if(!res.ok) throw new Error('routage indisponible');
+  const data = await res.json();
+  if(!data.routes || !data.routes.length) throw new Error('aucun itinéraire trouvé');
+  return {
+    distanceKm: data.routes[0].distance / 1000,
+    durationMin: data.routes[0].duration / 60
+  };
+}
+
+// heuristic traffic multiplier based on datetime
+function autoTrafficFactor(dateStr, timeStr){
+  const d = new Date(dateStr + 'T' + (timeStr || '08:00'));
+  const day = d.getDay(); // 0 sun .. 6 sat
+  const hour = d.getHours() + d.getMinutes()/60;
+  const isWeekend = (day === 0 || day === 6);
+  let factor = 1.0, label = 'fluide';
+
+  const inRange = (h, a, b) => h >= a && h <= b;
+
+  if(!isWeekend){
+    if(inRange(hour,7,9.5) || inRange(hour,16.5,19.5)){ factor = 1.5; label = 'dense'; }
+    else if(inRange(hour,9.5,11) || inRange(hour,19.5,21)){ factor = 1.2; label = 'modere'; }
+  } else {
+    // weekend départs en vacances style peaks (samedi matin/ dimanche soir)
+    if(day === 6 && inRange(hour,9,13)){ factor = 1.35; label = 'modere'; }
+    if(day === 0 && inRange(hour,16,20)){ factor = 1.45; label = 'dense'; }
+  }
+  return { factor, label };
+}
+
+function trafficBadge(label){
+  const map = { fluide:'Fluide', modere:'Modéré', dense:'Dense' };
+  return `<span class="traffic-badge ${label}">${map[label]}</span>`;
+}
+
+function fmt(n, d=0){ return n.toLocaleString('fr-FR', {minimumFractionDigits:d, maximumFractionDigits:d}); }
+
+function renderTicket(params){
+  const {
+    departLabel, arriveeLabel, dateStr, heureStr,
+    distanceKm, durationMinBase, durationMinReal, trafficLabel,
+    conso, prixL, unit, peageKm, partAuto, passagers, allerRetour,
+    coutEssence, coutPeage, coutTotal, coutBareme, baremeTaux
+  } = params;
+
+  const h = Math.floor(durationMinReal/60);
+  const m = Math.round(durationMinReal%60);
+  const dureeStr = `${h}h${m.toString().padStart(2,'0')}`;
+
+  const dateObj = new Date(dateStr + 'T' + heureStr);
+  const dateFmt = dateObj.toLocaleDateString('fr-FR', { day:'2-digit', month:'short', year:'numeric' });
+
+  const baremeRow = coutBareme !== null ? `
+          <div class="trow"><span class="k">Barème kilométrique (${baremeTaux} €/km) ⚠</span><span class="v">${fmt(coutBareme,2)} €</span></div>
+          <div class="trow"><span class="k">Écart coût réel vs barème</span><span class="v ${coutBareme >= coutTotal ? '' : 'amber'}">${coutBareme >= coutTotal ? '+' : ''}${fmt(coutBareme - coutTotal,2)} €</span></div>` : '';
+
+  ticketZone.innerHTML = `
+    <div class="ticket">
+      <div class="ticket-body">
+        <div class="ticket-head">
+          <div>
+            <div class="label">Itinéraire ${allerRetour ? '· Aller-retour' : '· Aller simple'}</div>
+            <div class="route">${departLabel} <span class="arrow">${allerRetour ? '⇄' : '→'}</span> ${arriveeLabel}</div>
+          </div>
+          <div class="datetime">
+            ${dateFmt}<br>départ ${heureStr}
+          </div>
+        </div>
+        <div class="ticket-rows">
+          <div class="trow"><span class="k">Distance${allerRetour ? ' (A/R)' : ''}</span><span class="v cyan">${fmt(distanceKm,0)} km</span></div>
+          <div class="trow"><span class="k">Durée sans trafic</span><span class="v">${Math.floor(durationMinBase/60)}h${Math.round(durationMinBase%60).toString().padStart(2,'0')}</span></div>
+          <div class="trow"><span class="k">Trafic estimé</span><span class="v">${trafficBadge(trafficLabel)}</span></div>
+          <div class="trow"><span class="k">Durée ajustée</span><span class="v cyan">${dureeStr}</span></div>
+          <div class="trow"><span class="k">Conso · énergie</span><span class="v">${conso} ${unit}/100 · ${fmt(prixL,2)} €/${unit}</span></div>
+          <div class="trow"><span class="k">Coût énergie</span><span class="v amber">${fmt(coutEssence,2)} €</span></div>
+          <div class="trow"><span class="k">Péage (${partAuto}% autoroute, ${peageKm} €/km)</span><span class="v amber">${fmt(coutPeage,2)} €</span></div>
+          ${passagers > 1 ? `<div class="trow"><span class="k">Coût / passager (÷${passagers})</span><span class="v">${fmt(coutTotal/passagers,2)} €</span></div>` : ''}${baremeRow}
+        </div>
+        <div class="barcode"></div>
+        <div class="ticket-foot"><span>OSM · OSRM</span><span>trajet estimé</span></div>
+      </div>
+      <div class="ticket-total">
+        <span class="k">Coût total du trajet</span>
+        <span class="v">${fmt(coutTotal,2)} € <small>≈ ${fmt(coutTotal/Math.max(distanceKm,1),3)} €/km</small></span>
+      </div>
+    </div>
+  `;
+}
+
+calcBtn.addEventListener('click', async () => {
+  const departCity = $('depart').value.trim();
+  const arriveeCity = $('arrivee').value.trim();
+  const dateStr = $('date').value;
+  const heureStr = $('heure').value || '08:00';
+  const conso = Math.max(0, parseFloat($('conso').value) || 0);
+  const prixL = Math.max(0, parseFloat($('prixL').value) || 0);
+  const peageKm = Math.max(0, parseFloat($('peage').value) || 0);
+  const partAuto = Math.min(100, Math.max(0, parseFloat($('partAuto').value) || 0));
+  const passagers = Math.max(1, parseInt($('passagers').value) || 1);
+  const traficSel = $('trafic').value;
+  const energie = $('energie').value;
+  const allerRetour = $('allerRetour').checked;
+  const useBareme = baremeToggle.checked;
+  const baremeTaux = Math.max(0, parseFloat($('baremeTaux').value) || 0);
+
+  if(!departCity || !arriveeCity){
+    setStatus("Renseigne une ville de départ et une ville d'arrivée.", 'err');
+    return;
+  }
+
+  calcBtn.disabled = true;
+
+  try {
+    let distanceKm, durationMinBase, departLabel, arriveeLabel;
+
+    if(manualToggle.checked){
+      distanceKm = parseFloat($('manDist').value);
+      durationMinBase = parseFloat($('manDur').value);
+      if(!distanceKm || !durationMinBase){
+        throw new Error('renseigne distance ET durée en mode manuel');
+      }
+      departLabel = departCity;
+      arriveeLabel = arriveeCity;
+      setStatus('Calcul en mode manuel (aucun appel réseau)...', null);
+    } else {
+      setStatus('Géocodage des villes...', null);
+      const [a, b] = await Promise.all([geocode(departCity), geocode(arriveeCity)]);
+      departLabel = a.display; arriveeLabel = b.display;
+
+      setStatus("Calcul de l'itinéraire (OSRM)...", null);
+      const r = await route(a, b);
+      distanceKm = r.distanceKm;
+      durationMinBase = r.durationMin;
+    }
+
+    let trafficLabel, factor;
+    if(traficSel === 'auto'){
+      const auto = autoTrafficFactor(dateStr, heureStr);
+      factor = auto.factor; trafficLabel = auto.label;
+    } else {
+      const map = { fluide: 1.0, modere: 1.2, dense: 1.5 };
+      factor = map[traficSel]; trafficLabel = traficSel;
+    }
+
+    // aller-retour : distance et durée doublées avant calcul des coûts
+    const tripMultiplier = allerRetour ? 2 : 1;
+    const distanceFinal = distanceKm * tripMultiplier;
+    const durationMinBaseFinal = durationMinBase * tripMultiplier;
+    const durationMinReal = durationMinBaseFinal * factor;
+
+    const unit = ENERGY_PRESETS[energie].unit;
+    const coutEssence = distanceFinal * (conso/100) * prixL;
+    const coutPeage = distanceFinal * (partAuto/100) * peageKm;
+    const coutTotal = coutEssence + coutPeage;
+    const coutBareme = useBareme ? distanceFinal * baremeTaux : null;
+
+    renderTicket({
+      departLabel, arriveeLabel, dateStr, heureStr,
+      distanceKm: distanceFinal, durationMinBase: durationMinBaseFinal, durationMinReal, trafficLabel,
+      conso, prixL, unit, peageKm, partAuto, passagers, allerRetour,
+      coutEssence, coutPeage, coutTotal, coutBareme, baremeTaux
+    });
+
+    setStatus('Ticket généré.', 'ok');
+  } catch(err){
+    const suggestion = manualToggle.checked ? '' : ' — clique sur "Saisir distance/durée à la main" pour contourner le géocodage.';
+    setStatus('Erreur : ' + err.message + suggestion, 'err');
+  } finally {
+    calcBtn.disabled = false;
+  }
+});
+</script>
+</body>
+</html>
